@@ -481,37 +481,49 @@ That is, $\tt{GC}$ only moves tuples from $\exists$ to $\top$.
 A number of example logical garbage collection rules are presented below.
 Each of these rules are monotone, conservative, and safe for some rule $R$.
 \begin{example}[Trivial GC]
-$\tt{GCTrivial}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS} \rangle$.
+$\tt{GCNone}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS} \rangle$.
 \end{example}
 The trivial GC returns the tombstone lattices unchanged.
-If $\tt{A}_1, \dots, \tt{A}_n$ are all output relations, then $\tt{GCTrivial}$ is the only garbage collection rule that respects output relations.
+If $\tt{A}_1, \dots, \tt{A}_n$ are all output relations, then $\tt{GCNone}$ is the only garbage collection rule that respects output relations.
 
-\begin{example}[Indicator GC]
-Consider the indicator function $\tt{f}$ with $\tt{f}\tt{(}\tt{X}\tt{)} = \emptyset$ if $\tt{X} = \emptyset$ and $\{1\}$ otherwise, and $R: \tt{B} ~\tt{<=}~ \tt{f}\tt{(}\tt{X}\tt{)}$.
-Suppose that $\emptyset \subseteq \tt{X} \subseteq \{a,b,c\}$.
-Define $\tt{GCInd}_{safe}$, $\tt{GCInd}_2$, and $\tt{GCInd}_3$ as
+% \begin{example}[Indicator GC]
+% Consider the indicator function $\tt{f}$ with $\tt{f}\tt{(}\tt{X}\tt{)} = \emptyset$ if $\tt{X} = \emptyset$ and $\{1\}$ otherwise, and $R: \tt{B} ~\tt{<=}~ \tt{f}\tt{(}\tt{X}\tt{)}$.
+% Suppose that $\emptyset \subseteq \tt{X} \subseteq \{a,b,c\}$.
+% Define $\tt{GCInd}_i(\tt{X}_{TS}; \tt{B}_{TS}) = (\tt{X}_\exists - \tt{X}_i^*, \tt{X}_\top \cup \tt{X}_i^*)$, for $i=1,2,3$ and
 % \begin{align*}
-% \tt{GCInd}_1(\tt{X}_{TS}; \tt{B}_{TS}) = \begin{cases}
-% \emptyset & c\\
-% d & e\\
+% \tt{X}_1^* = \begin{cases}
+% \emptyset & \text{if $|\tt{X}_\exists \cup \tt{X}_\top| \leq 1$} \\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b\}$}\\
+% c & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, c\}$}\\
+% b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{b, c\}$}\\
+% a,b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b, c\}$}\\
 % \end{cases}
 % &&
-% a = \begin{cases}
-% b & c\\
-% d & e\\
+% \tt{X}_2^* = \begin{cases}
+% \emptyset & \text{if $|\tt{X}_\exists \cup \tt{X}_\top| \leq 1$} \\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b\}$}\\
+% c & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, c\}$}\\
+% b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{b, c\}$}\\
+% a,b,c & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b, c\}$}\\
 % \end{cases}
 % &&
-% a = \begin{cases}
-% b & c\\
-% d & e\\
+% \tt{X}_3^* = \begin{cases}
+% \emptyset & \text{if $|\tt{X}_\exists \cup \tt{X}_\top| \leq 1$} \\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b\}$}\\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, c\}$}\\
+% b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{b, c\}$}\\
+% a,b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b, c\}$}\\
 % \end{cases}
 % \end{align*}
-\end{example}
-
-GC on indicator: $\emptyset -> 0$, non-$\emptyset -> 1$.
-If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI but not monotone.
-If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b,c then not satisfies GCI but monotone.
-If GC(a,b) = a, GC(a,c) = a, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI and monotone.
+% Then $\tt{GCInd}_1$ is safe for $R$ but not monotone, $\tt{GCInd}_2$ is monotone but not safe for $R$, and $\tt{GCInd}_3$ is monotone and safe for $R$.
+% \end{example}
+% $\tt{GCInd}_1$ is not monotone because $\tt{GCInd}_1((\{a,c\}, \emptyset); \tt{B}_{TS}) \not\leq \tt{GCInd}_1((\{a,b,c\}, \emptyset); \tt{B}_{TS}); \tt{B}_{TS})$.
+% $\tt{GCInd}_2$ is not safe because garbage collection on $\{a, b, c\}$ causes 
+% 
+% GC on indicator: $\emptyset -> 0$, non-$\emptyset -> 1$.
+% If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI but not monotone.
+% If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b,c then not satisfies GCI but monotone.
+% If GC(a,b) = a, GC(a,c) = a, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI and monotone.
 
 \begin{example}[Copy GC]
 Suppose $\tt{A}$ appears as input on the RHS of rules $R_i: \tt{B}_i ~\tt{<op>}~ \tt{A}$, where $\tt{<op>}$ is either a merge or deferred merge.
@@ -895,21 +907,6 @@ If a set $\tt{A}$ is an output set, it has $\tt{A}_{\top,t} = \emptyset$, and he
 
 
 
-\subsubsection{Incomplete}
-Give example of not deleting all reclaimable.
-
-1. Non-uniqueness of reclaimable set. Indicator of non-emptiness: GC(a,b) can only reclaim one of a or b, but not both
-
-2. Incompleteness of information. Deleted tuples are not available for reasoning.
-Consider $A \wedge B => C; view = C.notin(D)$
-If a tuple $x$ has appeared in $A$ and $B$, it will be derived in $C$, and then tombstoned from $A$ and $B$.
-If $x$ is also in $D$, we also tombstone $x$ in $C$.
-At the next timestep, $x$ is deleted from $A$, $B$, and $C$.
-If $A$ now receives $x$, we cannot determine from $A$, $B$, $C$ that $x$ can be reclaimed.
-We could deduce that $x$ can be reclaimed from $A$ by also examining $D$;
-however, that would require multi-rule reasoning, and in the worst case, reasoning about $\mathfrak{P}_{GC}$ in its entirety.
-
-
 \subsubsection{Coordination-freeness}
 
 \begin{thm}
@@ -1258,6 +1255,31 @@ If $\mathfrak{P}$ is confluent and $\tt{A}$ is an output set, then $\mathfrak{P}
 \label{cor:instantiated_confluence_of_keys}
 If $\mathfrak{P}$ is confluent and $\tt{A}$ has primary keys, then $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_I$ and $\tt{A}_!$.
 \end{cor}
+
+\subsubsection{Incomplete}
+In the previous section, Theorem \ref{thm:instantiated_correctness} established the soundness of our garbage collection rewrite --- tuples are deleted only if they do not affect future computation.
+Unfortunately, it is not generally possible to establish completeness, i.e., that any tuple that could be removed without affecting future computation will be removed.
+
+There are a couple of possible reasons for incompleteness.
+Firstly, there may not be a unique largest set of reclaimable tuples.
+For example, consider the function $\tt{f}(\tt{A}) = \emptyset$ if $|\tt{A}| = 0$ and $\{1\}$ otherwise.
+Given the input $\tt{A} = \{a,b\}$, either $a$ or $b$ can be reclaimed without affecting computation, but we cannot safely reclaim both tuples.
+
+Secondly, the act of garbage collection itself reduces the information available for reasonable about safe reclamation.
+Consider the program
+\begin{align*}
+\tt{A} &\quad\tt{<}\sim\quad \tt{chnA}\\
+\tt{B} &\quad\tt{<}\sim\quad \tt{chnB}\\
+\tt{C} &\quad\tt{<=}\quad \tt{A} \cap \tt{B}\\
+\tt{D} &\quad\tt{<}\sim \tt{C}
+\end{align*}
+If a tuple $x$ arrives in both $\tt{A}$ and $\tt{B}$, it is derived in $\tt{C}$ and sent to $\tt{D}$.
+A complete garbage collection must immediately reclaim $x$ from both $\tt{A}$ and $\tt{B}$, and eventually from $\tt{C}$ once its arrival at $\tt{D}$ has been determined.
+Now if $x$ arrives in $\tt{A}$ again but not in $\tt{B}$, we cannot determine from $\tt{A}$, $\tt{B}$ and $\tt{C}$ that it is safe to delete.
+While it is possible to deduce that $x$ in $\tt{A}$ is safe for deletion by examining $\tt{D}$, this would require multi-rule reasoning, and in the worst case, over the entire program $\tt{P}$.
+Doing so is complex and beyond the scope of our current work.
+
+
 
 \subsection{Coordination}
 Unlike $\mathfrak{P}_{GC}$, the instantiated GC program $\tt{P}_{iGC}$ is in general \emph{not confluent} even if $\mathfrak{P}$ is.
