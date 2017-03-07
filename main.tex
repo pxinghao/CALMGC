@@ -356,13 +356,13 @@ In particular, the GC rules must be safe -- they should only tombstone tuples th
 Consider any merge or deferred merge rule 
 \[R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}\]
 where $\tt{<op>}$ is either $\tt{<=}$ or $\tt{<+}$,
-$\tt{A}_1,\dots,\tt{A}_n$ are tables without keys,
-$\tt{U}_1,\dots,\tt{U}_m$ are tables with keys,
+$\tt{A}_1,\dots,\tt{A}_n$ are tables with or without primary keys,
+$\tt{U}_1,\dots,\tt{U}_m$ are tables with primary keys,
 and RHS is not a channel.
 We require that, 
-$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,
-\quad
-\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle \geq \langle \tt{U}_{1,\exists}, \dots, \tt{U}_{m,\exists} \rangle$
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,$
+$\quad
+\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle \geq \langle \tt{U}_1, \dots, \tt{U}_m \rangle$
 such that $\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top} = \dots = \widehat{\tt{U}}_1 \cap \tt{U}_{m,\top}$:
 \begin{align}
 \tt{f(}\widehat{\tt{A}}_1,\dots,\widehat{\tt{A}}_n, \widehat{\tt{U}}_{1,\exists},\dots,\widehat{\tt{U}}_{n,\exists}\tt{)}
@@ -383,6 +383,9 @@ However, in the process of executing $\mathfrak{P}_{GC}$, we may find ourselves 
 In such a case, we wish to ensure that the execution of $R$ in $\mathfrak{P}_{GC}$ (LHS of \eqref{eq:inv_merge_gc}) matches the corresponding execution of $R$ in $\mathfrak{P}$ (RHS of \eqref{eq:inv_merge_gc}) as if we had not reclaimed $\tt{A}_{1,\top}, \dots, \tt{A}_{n,\top}$.
 As we will see in the examples below, the invariant often reduces to a simple intuitive assertion.
 
+Note that the above invariant is a stronger assertion for $\tt{A}_1, \dots, \tt{A}_n$ than for $\tt{U}_1, \dots, \tt{U}_n$, since we place an extra restriction on $\widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m$.
+Despite that, we will sometimes choose to treat some tables $\tt{U}$ as if they do not have primary keys, and show that Invariant \ref{inv:merge_gc} holds for the larger range of $\widehat{\tt{U}}$.
+This is because we will later place a stronger requirement (Property \ref{property:instantiated_gc_consistent}) on the instantiated garbage collection for tables with primary keys, and it may be more convenient to prove Property \ref{property:gc_safety} without primary keys than it is to show Property \ref{property:instantiated_gc_consistent} with primary keys.
 
 \begin{property}[GC Rule Output Respect]
 A garbage collection rule $\tt{GC}$ \emph{respects output relations} if it does not tombstone tuples from output relations.
@@ -390,6 +393,7 @@ That is, letting $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{
 \end{property}
 
 \begin{property}[Merge GC Safety]
+\label{property:gc_safety}
 Let $R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ be a merge or deferred merge rule.
 A garbage collection rule $\tt{GC}$ is safe for $R$ if it respects output relations, and maintains the Merge GC Invariant \ref{inv:merge_gc} for $R$.
 That is, if $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, \tt{U}_{m,TS} \rangle$ and $\tt{B}_{TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc} for $R$, then $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*, \tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$ and $\tt{B}_{TS}$ also satisfies the Merge GC Invariant \ref{inv:merge_gc}.
@@ -537,7 +541,7 @@ is safe for the join.
 In words, a tuple $a$ can be tombstoned if it matches a punctuation $p_c$ in $\tt{P}_\tt{C}$ \emph{and} the result of joining $\{a\}$ with $\tt{C}$ is already effected in $\tt{B}_{TS}$.
 Hence, any $c \in \tt{C}$ either does not match $a$, or is already joined with $a$ in $\tt{B}$ and so will not affect any future join computation.
 In addition, we tombstone a punctuation $p_a$ if it matches a punctuation $p_c$ and the join of their sets $p_a.\tt{A} \times p_c.\tt{C}$ is already effected in $\tt{B}_{TS}$.
-It is a simple exercise to show that $\tt{GCJoin}$ tombstones a punctuation $p_a$ only when its set $p_a.\tt{A}$ is tombstoned (or does not exist yet), i.e., $(p_a \in \tt{P}_{\tt{A},\top}) \implies \tt{A}_\exists \cap p_a.\tt{A} = \emptyset$.
+It is a simple exercise to show that $\tt{GCJoin}$ tombstones a punctuation $p_a$ only when its set $p_a.\tt{A}$ is tombstoned (or does not exist yet), i.e., $(p_a \in \tt{P}_{\tt{A},\top}) \implies \tt{A}_\exists \cap p_a.\tt{A} = \emptyset \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$.
 
 \begin{example}[DR+: Positive Difference Reclamation]
 Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
@@ -925,12 +929,17 @@ The instantiated GC rule $\tt{GCI}$ is \emph{conservative} if $\forall \tt{A}_{1
 In words, a conservative $\tt{GCI}$ only deletes tuples that it can observe.
 
 \begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
-Suppose $\forall i=1,\dots,n$, $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$, and $\forall i=1,\dots,m$, $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$.
+Suppose $\tt{GC}$ is a logical garbage collection rule safe for $R$, and that the following are true:
+\begin{enumerate}
+\item $\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}$, $\tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}$ satisfy the Merge GC Invariant \ref{inv:merge_gc} for $R$,
+\item $\forall i=1,\dots,n$, if $\tt{A}_i$ has no primary keys, then $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$; otherwise, $\tt{A}_{i,\exists} = \tt{A}_{i,I}$ and $\tt{A}_{i,!} = \pi_!(\tt{A}_{i,\exists} \cup \tt{A}_{i,\top})$,
+\item $\forall i=1,\dots,m$, if $\tt{B}_i$ has no primary keys, then $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$; otherwise, $\tt{B}_{i,\exists} = \tt{B}_{i,I}$ and $\tt{B}_{i,!} = \pi_!(\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$.
+\end{enumerate}
 Let $(\tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*) = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$
-and $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{GCI}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
+and $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-)$ $=$ $\tt{GCI}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E};$ $\tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
 Then, $\tt{GCI}$ is \emph{consistent with} $\tt{GC}$ if $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$ if $\tt{A}_i$ does not have primary keys,
 and 
-$\tt{A}_{i,I}^- = \tt{A}_{i,\top}^*$ if $\tt{A}_i$ has primary keys.
+$(\tt{A}_{i,!} - \tt{A}_{i,I}) \cup \tt{A}_{i,I}^- = \tt{A}_{i,\top}^*$ if $\tt{A}_i$ has primary keys.
 \end{property}
 In words, $\tt{GCI}$ is consistent with $\tt{GC}$ if the tuples that are deleted by $\tt{GCI}$ are a subset of the tuples tombstoned by $\tt{GC}$,
 and in the case where primary keys are available, both $\tt{GC}$ and $\tt{GCI}$ agree on the tombstoned tuples.
@@ -986,20 +995,49 @@ simple relational algebra demonstrates that
 $\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I) \subseteq \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)) = \tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS})$.
 
 \begin{example}[Join with punctuations]
-$\tt{iGCJoin}(\tt{A}_I, \tt{P}_{\tt{A},E}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},E}^-, \tt{C}_I^-, \tt{P}_{\tt{C},E}^-\rangle$, where
+$\tt{iGCJoin}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},I}^-, \tt{C}_I^-, \tt{P}_{\tt{C},I}^-\rangle$, where
 \begin{align*}
 \tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
-\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
-\tt{C}^* &= \left\{c \in \tt{C}_\exists \cup \tt{C}_\top ~:~ \exists p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(p_a.\tt{A} \times \{c\} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\right\}\\
-\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}
+\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\}\\
+\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
 \end{align*}
+is consistent with $\tt{GCJoin}$.
+\end{example}
+Proof of consistency of $\tt{iGCJoin}$ with $\tt{GCJoin}$ is straightforward\footnote{
+	We treat $\tt{P}_\tt{A}$ and $\tt{P}_\tt{C}$ as if they are tables without primary keys.
+} and thus omitted.
+As noted before, $p_a \in \tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I} \implies p_a \in \tt{P}_{\tt{A},\top} \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$, so we can also tombstone tuples whose keys match $\tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I}$:
+
+\begin{example}[Join with punctuations, version 2]
+$\tt{iGCJoinV2}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},E}^-, \tt{C}_I^-, \tt{P}_{\tt{C},E}^-\rangle$, where
+\begin{align*}
+\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\} \cup \{a \in \tt{A}_I ~:~ a.k_a \in \tt{P}_{\tt{A},!} - \pi_!(\tt{P}_{\tt{A},I})\}\\
+\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\} \cup \{c \in \tt{C}_I ~:~ c.k_c \in \tt{P}_{\tt{C},!} - \pi_!(\tt{P}_{\tt{C},I})\}\\
+\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
+\end{align*}
+is consistent with $\tt{GCJoin}$.
 \end{example}
 
-Join with punctuations
 
-DR+
+\begin{example}[DR+: Positive Difference Reclamation]
+$\tt{iGCDR+}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{C}, \tt{C}_I\rangle$ is consistent with $\tt{GCDR+}$.
+\end{example}
 
-DR-
+\begin{example}[DR-: Negative Difference Reclamation]
+$\tt{iGCDR-}(\tt{A}_E, \tt{C}_I; \tt{B}_I) = \langle (\tt{A}_I \cap \tt{C}_I, \pi_!(\tt{A}_I \cap \tt{C}_I), \tt{C}_I \cap (\tt{A}_! - \tt{A}_I)\rangle$ is consistent with $\tt{GCDR+}$.
+\end{example}
+Suppose $\tt{A}_{TS}$, $\tt{C}_{TS}$, $\tt{A}_E$, and $\tt{C}_I$ satisfy the conditions of Property \ref{property:instantiated_gc_consistent}.
+In particular, $\tt{A}_{TS}$ and $\tt{C}_{TS}$ satisfies Invariant \ref{inv:merge_gc}, so as previously discussed, this implies $\tt{C}_\top \subseteq \tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\exists$.
+Thus,
+\begin{align*}
+(\tt{A}_! - \tt{A}_I) \cup (\tt{A}_I \cap \tt{C}_I)
+= \tt{A}_\top \cup (\tt{A}_\exists \cap \tt{C}_\exists)
+= \tt{A}_\top \cup (\tt{A}_\exists \cap (\tt{C}_\exists \cup \tt{C}_\top))
+= \tt{A}_\top \cup ((\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top))
+\end{align*}
+which are exactly the tombstones of $\tt{GCDR-}$.
 
 
 \subsection{Correctness}
@@ -1092,7 +1130,7 @@ Hence,
 \end{align}
 If $\tt{A}$ has no primary keys, \eqref{eq:thm:ins_correct:timestep} becomes
 \begin{align}
-&\tt{A}_{\exists,t,0}\nonumber\\
+\tt{A}_{\exists,t,0}
 \subseteq& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
 - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} \label{eq:thm:inst_correct:timestep_0}\\
 \subseteq& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
@@ -1106,7 +1144,16 @@ If $\tt{A}$ has no primary keys, \eqref{eq:thm:ins_correct:timestep} becomes
 &~ \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Property \ref{property:gc_conservative})}\nonumber\\
 =&~ \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t} \nonumber
 \end{align}
-If $\tt{A}$ has primary keys, \eqref{eq:thm:inst_correct:timestep_0} and \eqref{eq:thm:inst_correct:timestep_1} are equalities, so $\tt{A}_{\exists,t,0} = \tt{A}_{I,t,0}$.
+If $\tt{A}$ has primary keys, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align*}
+\tt{A}_{\exists,t,0}
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+-(\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} 
+\\
+=& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+-(\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(I.H.)}\\
+=& \tt{A}_{I,t,0}
+\end{align*}
 Furthermore, for $\tt{A}_!$, we have
 \begin{align*}
 \tt{A}_{!,t,0}
