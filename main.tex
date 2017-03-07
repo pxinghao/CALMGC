@@ -1,5 +1,1299 @@
 \documentclass{article}
-\usepackage[utf8]{inputenc}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+%% Sets page size and margins
+\usepackage[top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{amsthm}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  mathescape
+}
+
+\numberwithin{equation}{section}
+
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{thm}[theorem]{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{cor}[theorem]{Corollary}
+\newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{conj}[theorem]{Conjecture}
+
+\newtheorem{defn}{Definition}[section]
+
+\newtheorem{rmk}{Remark}[section]
+\newtheorem{example}{Example}[section]
+
+\newtheorem{property}{Property}[section]
+\newtheorem{invariant}[property]{Invariant}
+\newtheorem{assumption}[property]{Assumption}
+
+\newenvironment{claim}[1]{\par\noindent\underline{Claim:}\space#1}{}
+\newenvironment{claimproof}[1]{\par\noindent\underline{Proof:}\space#1}{\hfill $\blacksquare$}
+
+\renewcommand{\tt}[1]{\ifmmode\text{\texttt{#1}}\else\texttt{#1}\fi}
+
+
+\title{Keep CALM and GC}
+\author{Xinghao Pan, Joseph Hellerstein}
+
 \begin{document}
-(Type your content here.)
+\maketitle
+
+\begin{abstract}
+The CALM theorem \cite{hellerstein2010declarative, ameloot2013relational} states that coordination-free programs are exactly monotonic queries.
+Informally, a ``coordination'' is communication whose purpose is to detect or discover the completeness of input.
+A coordination-free program may require other forms of communications, but can always generate partial output corresponding to any partial input, without the need for future retraction.
+Conversely, a program that is not coordination-free requires the knowledge of input completeness in order to generate output that it will not later retract, and therefore cannot generate the correct answer until the full input is given.
+
+Bloom \cite{alvaro2011consistency} is a programming model that encapsulates this philosophy by enabling high-level consistency analysis, which identify rules and cycles of non-monotonicity as points of order necessitating coordination.
+
+To sidestep challenges in distributed consistency, practitioners and academics have resorted to writing systems with immutable states, a model which has been termed Event Log Exchange (ELE).
+Edelweiss \cite{conway2014edelweiss} specializes Bloom to a sublanguage that omits primitives for mutating or deleting data, with the specific application of event log exchanges (ELE) programs in mind.
+ELE programs written with immutable data are immediately monotone, and thus coordination-free.
+
+While the ELE programming paradigm simplifies distributed programming, it results in unbounded storage growth.
+Edelweiss combats this through automatic garbage that discards useless data and reclaims storage.
+Unfortunately, the opportunities for storage reclamation identified in \cite{conway2014edelweiss} largely exploit non-monotonic operations such as set negation.
+This runs counter to the original motivation for immutability, namely, to write monotone and therefore coordination-free programs.
+
+In this work, we harmonize the notion of CALM consistency with ELE.
+The intuitions behind our approach are (i) data that does not affect future computation can be safely reclaimed, and (ii) garbage collection should only requires local coordination\footnote{
+	Here we use ``coordination'' in the sense of communication for discovering input completeness.
+    We will define garbage collection rules that do not require knowledge of input completeness from other nodes.
+} and does not affect the overall monotonicity and coordination-freeness of the program.
+We define properties of valid GC rules according to these intuitions, and provide an analysis of garbage collection.
+We prove that our automated garbage collection is monotone (output always increases) and coordination-free (no additional inter-node points of order) whenever the original program is monotone.
+\end{abstract}
+
+\section{Introduction}
+
+\section{Preliminaries}
+\subsection{CALM}
+
+\subsection{Dedalus, Bloom, Edelweiss}
+Dedalus is a spatio-temporal Datalog language, with the following types of rules.
+\begin{enumerate}
+\item \emph{Deductive} rules are rules which are local in space and time:
+	\[\tt{p(}\overline{\tt{W}}\tt{)} ~\leftarrow~ \tt{b}_1\tt{(}\overline{\tt{X}}_1\tt{)}, \dots, \tt{b}_m\tt{(}\overline{\tt{X}}_m\tt{)}, \neg\tt{c}_1\tt{(}\overline{\tt{Y}}_1\tt{)}, \dots, \neg\tt{c}_n\tt{(}\overline{\tt{Y}}_n\tt{)}.\]
+\item \emph{Inductive} rules are local in space and but take place at the next time step:
+	\[\tt{p(}\overline{\tt{W}}\tt{)@next} ~\leftarrow~ \tt{b}_1\tt{(}\overline{\tt{X}}_1\tt{)}, \dots, \tt{b}_m\tt{(}\overline{\tt{X}}_m\tt{)}, \neg\tt{c}_1\tt{(}\overline{\tt{Y}}_1\tt{)}, \dots, \neg\tt{c}_n\tt{(}\overline{\tt{Y}}_n\tt{)}.\]
+\item \emph{Asynchronous} rules are derivations occurring at an unspecified future time, at possibly different nodes:
+	\[\tt{p(\#D,}\overline{\tt{W}}\tt{)@async} ~\leftarrow~ \tt{b}_1\tt{(\#S,}\overline{\tt{X}}_1\tt{)}, \dots, \tt{b}_m\tt{(\#S,}\overline{\tt{X}}_m\tt{)}, \neg\tt{c}_1\tt{(\#S,}\overline{\tt{Y}}_1\tt{)}, \dots, \neg\tt{c}_n\tt{(\#S,}\overline{\tt{Y}}_n\tt{)},\]
+indicates a derivation at node $\tt{D}$ caused by node $\tt{S}$.
+\end{enumerate}
+
+Bloom statements are of the form \textit{<collection-variable> <op> <collection-expression>}, where $op$ is one of the following:
+\begin{enumerate}
+\item $\tt{<=}$ merge: LHS includes content of RHS in the current timestep
+\item $\tt{<+}$ deferred merge: LHS includes content of RHS in the next timestep
+\item $\tt{<-}$ deferred delete: LHS will not include content of RHS in the next timestep
+\item $\tt{<}\sim$ async merge: (Remote) LHS will include content of RHS in some non-deterministic future timestep
+\end{enumerate}
+The Bloom rules correspond to Dedalus rules: merges are deductive, deferred merges and deletes are inductive, and asynchronous merges are asynchronous Dedalus rules.
+For example, the Bloom statement $\tt{P <= join [B, C], [B.key1, C.key2]}$ corresponds to the Dedalus rule $\tt{p(key,}\overline{\tt{X}}\tt{,}\overline{\tt{Y}}\tt{)}$ $~\leftarrow~$ $\tt{b(key,}\overline{\tt{X}}\tt{),$ $c(key,}\overline{\tt{Y}}\tt{)}$\footnote{Is this correct Dedalus?}.
+
+We observe that the expression $\tt{join [B, C], [B.key1, C.key2]}$ is really a function of $\tt{B}$ and $\tt{C}$, and we could replace it with some $\tt{f(B,C)}$.
+In the sequel, we will use this functional notation for ease of exposition; however, the reader should keep in mind that underlying the notation is a Bloom / Dedalus / Datalog rule defining derivation of tuples.
+
+(Also need to talk about tables, scratches, and channels.)
+
+Edelweiss restricted Bloom to a sublanguage that omits primitives for mutating or deleting data:
+\begin{enumerate}
+\item Deletion rules ($\tt{<-}$) cannot be used.
+\item Channel messages are stored persistently. That is, the LHS of a rule that reads messages from a channel must be persistent.
+\item Channels are derived from persistent collections. That is, if a channel appears on the LHS of a rule, the rule's RHS must consist of monotone operators over persistent collections.
+\end{enumerate}
+
+Bloom$^L$ extends Bloom to support lattices and merge ($\tt{<=}$) and deferred merge ($\tt{<+}$) operations on lattices.
+While our original program will be in Bloom, our rewritten GC program will be in  Bloom$^L$.
+
+
+\subsection{Lattices: Tombstones and Products}
+Promote everything to tombstone sets, and make state a product lattice.
+Any sub-vector of the product lattice is itself a lattice; we can define join and meet on the sub-lattice to mean operations on full product lattice.
+
+\subsection{Bloom$^L$ Execution}
+(Using formalism and definitions of Bloom$^L$ writeup..)
+
+A Bloom$^L$ \emph{program} is a set $\{\mathfrak{P}_v ~:~ v \in V\}$ for some finite $V$, where each $\mathfrak{P}_v$ is itself a finite collection of rules.
+A message-time assignment $\tau$ is a function taking $(R_i, v, t, v')$, with $R_i \in \mathfrak{P}_v$ asynchronous merge rule, and returning $\tau(R_i, v, t, v') = t'$.
+Intuitively, this indicates that the message sent from node $v$ at time $t$ due to asynchronous merge rule $R_i$ will arrive at the destination node $v'$ at time $t'$.
+The message-time assignment $\tau$ is \emph{causally plausible} if it obeys causality, i.e., there is no sequence $(R_1, v_1, t_1, v'_1), \dots, (R_n, v_n, t_n, v'_n)$ such that $v_k = v'_{k-1}$, and $\tau(R_k, v_k, t_k, v'_k) \leq t_{k+1}$, but also $v'_n = v_1$ and $t_1 \geq \tau(R_n, v_n, t_n, v_n)$.
+Note that a causally plausible $\tau$ induces a (partial) ordering on the node-timestamp space: $(v,t) <_\tau (v',t')$ if either $\exists R \in \mathfrak{P}_v$ such that $\tau(R,v,t,v') \leq t'$, or $\exists v'', t''$ such that $(v,t) \leq_\tau (v'', t'')$ and $(v'', t'') <_\tau (v',t')$.
+Intuitively, $(v,t) <_\tau (v',t')$ if there is a sequence of messages that allows us to go from $(v,t)$ to $(v',t')$.
+For a causally plausible $\tau$, we cannot have $(v,t) <_\tau (v',t')$ and also $(v',t') <_\tau (v,t)$, as that would violate the causal plausibility of $\tau$.
+
+Operationally, for each rule $R_i$, node $v$, and time $t$, we associate an operator $T_{i,v,t}(\mathcal{E}, I) := (\mathcal{E}, I')$:
+\begin{enumerate}
+\item\emph{Merge:} $I'(\tt{B}@(v,t)) ~=~ I(\tt{B}@(v,t)) ~\sqcup~ \tt{f(}I(\tt{A}_1@(v,t)),\dots,I(\tt{A}_k@(v,t))\tt{)}$.
+\item\emph{Deferred Merge:} $I'(\tt{B}@(v,t+1)) ~=~ I(\tt{B}@(v,t+1)) ~\sqcup~ \tt{f(}I(\tt{A}_1@(v,t)),\dots,I(\tt{A}_k@(v,t))\tt{)}$.
+\item\emph{Deferred Delete:} If deferred deletes are present, they are treated together with deferred merges:
+\begin{align*}
+I'(\tt{B}@(v,t+1)) ~=~ I(\tt{B}@(v,t+1)) ~\sqcup~ \Bigg(
+&\bigsqcup_{i=1}^n \tt{f(}I(\tt{A}_{i1}@(v,t)),\dots,I(\tt{A}_{ik_i}@(v,t))\tt{)}\\
+&~-~
+\bigsqcup_{i=1}^n \tt{f(}I(\tt{C}_{i1}@(v,t)),\dots,I(\tt{C}_{il_i}@(v,t))\tt{)}
+\Bigg)
+\end{align*}
+\item\emph{Asynchronous Merge:} $I'(\tt{chn}@(v',t')) ~=~ I(\tt{chn}@(v',t')) ~\sqcup~ \tt{f}_{v'}\tt{(}I(\tt{A}_1@(v,t)),\dots,I(\tt{A}_k@(v,t))\tt{)}$, where $t' = \tau(R_i, v, t, v')$.
+\end{enumerate}
+For simplicity, we assume that each relation $\tt{A}$ is spatially unique, i.e., there exists only one $v$ for which $\tt{A}@v$ is instantiated, and thus drop the node specifier when it is obvious from context.
+We similarly assume that channels are one-to-one, and omit the destination node specifier.
+
+An instantaneous run $\pi$ is a successive application of merge ($\tt{<=}$) operators $T_{\pi(1),v,t}, T_{\pi(2),v,t}, \dots$ to some initial condition $(\mathcal{E}, I)$.
+A between-instants run $\rho$ is a successive application of asynchronous merge ($\tt{<}\sim$), and deferred merge and delete ($\tt{<+}$ and $\tt{<-}$) operators $T_{\rho(1),v,t}, T_{\rho(2),v,t}, \dots$ to some initial condition $(\mathcal{E}, I)$.
+
+A run $\Pi$ is a sequence of instantaneous runs $\pi_{v_1,t_1}, \rho_{v_1,t_1},, \pi_{v_2,t_2}, \rho_{v_2,t_2}, \dots$ such that $\forall (v_i, t_i), \forall (v, t) <_\tau (v_i, t_i), \exists j < i: (v, t) = (v_j, t_j)$, that is, every $(v,t)$ that is $\tau$-less than $(v_i, t_i)$ must be run before $(v,t)$.
+$(v_i, t_i) <_\tau (v_{i+1}, t_{i+1})$.
+Furthermore, $\pi_{v_1, t_1}$ is applied with the initial conditions $(\mathcal{E}, I_\emptyset)$, and $\pi_{v_k,t_k}$ is applied with the fixed point of $\pi_{v_{k-1}, t_{k-1}}$ as the initial conditions.
+This is only well defined for $\pi_{v_k, t_k}$ when $\pi_{v_{k'}, t_{k'}}$ has a fixed point for all $k' < k$.
+We also point out that by definition of the operators, an instantaneous run $\pi_{v,t}$ cannot affect any relation $\tt{B}@(v',t')$ if $(v',t') <_\tau (v,t)$.
+Hence, the relation $\tt{B}@(v',t')$ remains unchanged after we terminate $\pi_{v',t'}$.
+% We denote the assignment obtained after applying $T_{\pi_{v,t}(i),v,t}$ as $I^{\Pi_\tau}_{v,t,i}$;
+% if $\pi_{v,t}$ terminates, we denote the fixed point as $I^{\Pi_\tau}_{v,t}$.
+
+We assume that every instantaneous run $\pi_{v,t}$ terminates, for otherwise our Bloom$^L$ program does not halt.
+It is also easy to see that a between-instants run $\rho_{v,t}$ must terminate, as it makes no changes to the input arguments at $(v,t)$.
+
+Let $I^\Pi_{v,t,i}$ be the assignment obtained after applying $T_{\pi_{v,t}(i),v,t}$, and $I^\Pi_{v,t+1,0}$ be the assignment obtained after applying $\rho_{v,t}$.
+We will most often be interested in the assignment to lattices at $(v,t)$ after partially applying $\pi_{v,t}$ and $\rho_{v,t}$;
+for simplicity, we will write $\tt{A}_{@t,i} = I^\Pi_{v,t,i}(\tt{A}@(v,t))$ and $\tt{A}_{@t+1} = \tt{A}_{@t+1,0} = I^\Pi_{v,t+1,0}(\tt{A}@(v,t))$.
+
+
+
+\section{Logical Garbage Collection Rewrite}
+The idea of the GC rewrite is to lift the program's state into tombstone lattices.
+Within the timestep, we perform operations on the lifted representation instead of the original state.
+Garbage collection occurs between timesteps, marking tuples for reclamation.
+In this section, our storage reclamation is only logical, i.e., tuples are never actually deleted.
+This leads to a program with no additional coordination required.
+We then present a second rewrite where the reclamation is instantiated; in the second rewrite, we guarantee confluence of output sets, but not of intermediate sets from which storage is reclaimed.
+
+For clarity, we also omit garbage collection for asynchronous rules.
+Doing so will allow us to develop simpler analyses that illuminate the overall approach.
+We will then revisit garbage collection for asynchronous rules in later sections, building on the approach in this section.
+
+\subsection{Rewrite Rules}
+We begin with a program $\mathfrak{P}$ with rules $R_1, \dots, R_n$, and rewrite it into a GC program $\mathfrak{P}_{GC}$.
+We assume that all tables in $\mathfrak{P}$ are persistent (with implicit rules $\tt{A} ~\tt{<+}~ \tt{A}$), but will make any persistence in $\mathfrak{P}$ explicit.
+
+\setcounter{subsubsection}{-1}
+
+\subsubsection{Copy rewrite}
+We make the following simplifying assumption about $\mathfrak{P}$.
+\begin{assumption}
+\label{ass:copy}
+Let $\tt{A}$ be a table or channel in $\mathfrak{P}$ appearing in multiple rules
+\begin{align*}
+R_1: && \tt{B}_1 &\quad\tt{<op>}\quad \tt{f}_1\tt{(}\tt{A},\tt{C}_{11},\dots,\tt{C}_{1k_1}\tt{)}\\
+&&&\quad\vdots\\
+R_n: && \tt{B}_n &\quad\tt{<op>}\quad \tt{f}_n\tt{(}\tt{A},\tt{C}_{n1},\dots,\tt{C}_{nk_n}\tt{)}
+\end{align*}
+with $n \geq 2$.
+Then it must be the case that $R_i: \tt{B}_i ~\tt{<=}~ \tt{A}$ is an identity copy.
+\end{assumption}
+Assumption \ref{ass:copy} states that any table $\tt{A}$ can either appear as input on the RHS of a single rule, or otherwise each of the rules it appears in must be a copy rule.
+
+The assumption can be made without loss of generality, as any $\mathfrak{P}$ can always be rewritten into a program $\mathfrak{P}_0$ that satisfies Assumption \ref{ass:copy}.
+Suppose $\tt{A}$ is a table in $\mathfrak{P}$ appearing on the RHS of multiple rules $R_1,\dots,R_n$.
+We can define $\tt{A}_i$ in $\mathfrak{P}_0$ for each $R_i$, and replace $\tt{A}$ with $\tt{A}_i$ in $R_i$, and add the rules $\tt{A}_i ~\tt{<=}~ \tt{A}$.
+The resultant $\mathfrak{P}_0$ is essentially equivalent to $\mathfrak{P}$, in the sense that any run of $\mathfrak{P}$ corresponds to a run of $\mathfrak{P}_0$, and vice versa.
+
+In practice, the above rewrite should not increase storage significantly.
+One only needs to keep a single additional bit for each tuple and $R_i$ to record whether the tuple is in $\tt{A}_i$.
+
+This assumption is really only required so that we can specify garbage collection for each individual rule $R_i$ without having to reason about the logic of composing the garbage collection together.
+
+\subsubsection{State}
+Let $\tt{A}$ be a table in $\mathfrak{P}$.
+We introduce the table $\tt{A}_\exists$ and tombstone set $\tt{A}_{TS} = (\tt{A}_\exists, \tt{A}_\top)$ in $\mathfrak{P}_{GC}$.
+Intuitively, $\tt{A}_\exists$ should reflect facts in $\tt{A}$ which are important for future derivations and thus not garbage collected.
+$\tt{A}_{TS}$ contains facts of the current timestep, but with tombstones marking tuples that could be deleted without affecting future derivations.
+We also add rule
+\begin{align}
+(\tt{A}_\exists, \tt{A}_\top) &\quad\tt{<+}\quad (\tt{A}_\exists, \tt{A}_\top)\label{eq:aexistmerge}
+\end{align}
+All non-GC rules in $\mathfrak{P}_{GC}$ will be of the form $(\tt{A}_\exists, \tt{A}_\top) ~\tt{<op>}~ (\tt{X}, \emptyset)$.
+
+
+\subsubsection{Merges}
+We next consider rules in the original program $\mathfrak{P}$.
+For every rule
+\begin{align}
+\tt{B} \quad\tt{<=}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align}
+in $\mathfrak{P}$, we add the rule
+\begin{align*}
+(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<=}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
+\end{align*}
+
+\subsubsection{Deferred merges}
+For the deferred merge rule
+\begin{align}
+\tt{B} \quad\tt{<+}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align}
+in $\mathfrak{P}$, we add the rule
+\begin{align*}
+(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<+}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
+\end{align*}
+
+\subsubsection{Asynchronous merges}
+Asynchronous merges are messaging rules between nodes.
+On the sender side, in $\mathfrak{P}$, we have the rule 
+\begin{align}
+\overline{\tt{B}} \quad\tt{<}\sim\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align}
+and on the receiver side we have
+\begin{align}
+\tt{B} \quad\tt{<=}\quad \overline{\tt{B}}
+\end{align}
+These are respectively replaced in $\mathfrak{P}_{GC}$ by
+\begin{align}
+(\overline{\tt{B}}, \emptyset) &\quad\tt{<}\sim\quad \tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}
+\end{align}
+and
+\begin{align}
+(\tt{B}_\exists, \tt{B}_\exists) &\quad\tt{<=}\quad (\overline{\tt{B}}, \emptyset)
+\end{align}
+% Additionally, at the receiver node, we add a channel $\underline{\overline{\tt{B}}}$, and include the rule
+% \begin{align}
+% \underline{\overline{\tt{B}}} &\quad\tt{<}\sim\quad \overline{\tt{B}}
+% \end{align}
+% At the sender node, we add a table $\underline{\tt{B}}$ and include the rule
+% \begin{align}
+% \underline{\tt{B}} &\quad\tt{<=}\quad \underline{\overline{\tt{B}}}
+% \end{align}
+% Clearly a tuple is in $\underline{\tt{B}}$ only if it has been sent and received successfully.
+For this section, we do not perform garbage collection for asynchronous merge rules.
+That is, we treat all sets $\tt{A}_1, \dots, \tt{A}_n$ that appear as input on the RHS of asynchronous rules as `output' sets from which we never tombstone any tuple.
+
+\subsubsection{Garbage collection}
+The above rewrite rules do not perform any garbage collection; in fact, it is easy to see that they are equivalent to $\mathfrak{P}$.
+We will now add rules that mark tuples for reclamation.
+
+We say that a GC rule is safe for a rule $R_i$ if it only tombstones tuples that are guaranteed to have no effect on the future derivations of $R_i$.
+This will be made formal in the section below.
+
+Suppose that a table $\tt{A}$ is the input to a single rule $R: \tt{B} ~\tt{<op>}~ \tt{f}\tt{(}\tt{A},\tt{C}_1,\dots,\tt{C}_m\tt{)}$, where $\tt{<op>}$ is either a merge $\tt{<=}$ or deferred merge $\tt{<+}$, and $R$ is not the implicit persistence rule $\tt{A} ~\tt{<+} \tt{A}$.
+Suppose also that $\tt{GC}$ is a garbage collection rule that is safe for $R$.
+We will then add the following GC rule to $\mathfrak{P}_{GC}$:
+\begin{align}
+\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{m,TS} \rangle
+\quad\tt{<+}\quad
+\tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{m,TS}; \tt{B}_{TS}).
+\end{align}
+By Assumption \ref{ass:copy}, $\tt{C}_1,\dots,\tt{C}_m$ also do not appear in the input to any other rule of $\mathfrak{P}$.
+
+If the table $\tt{A}$ is the input to multiple rules $R_1, \dots, R_m$, then it must be the case that $R_i: \tt{B}_i ~\tt{<=}~ \tt{A}$ is an identity copy.
+In that case, we add the garbage collection rule
+\begin{align}
+(\tt{A}_\exists, \tt{A}_\top) \quad\tt{<+}\quad \tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})
+\end{align}
+where $\tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \left(\tt{A}_\exists - \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top}), \tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)\right)$
+We will show $\tt{GCCopy}$ is safe for each $R_i$.
+
+We highlight that we only add at most one GC rule for each $\tt{A}$ in $\mathfrak{P}_{GC}$\footnote{
+While it is possible to have multiple GC rules performing reclamation, we would require an additional restriction that the GC rules maintain the GC Invariant \ref{inv:merge_gc} under merges.
+(Maybe we can present this in an appendix?)
+}, i.e. each $\tt{A}$ only appears on the LHS of one GC rule.
+
+
+% \subsubsection{Example}
+% Here we show an example Bloom program $\mathfrak{P}$ which we rewrite to a GC-enabled program $\mathfrak{P}_{GC}$.
+% \begin{align}
+% \tt{A} &\quad\tt{<=}\quad \tt{chn\_in}\\
+% \tt{B} &\quad\tt{<=}\quad \pi_{x,y}\tt{(A)}\\
+% \tt{C} &\quad\tt{<+}\quad \pi_z\tt{(A)}
+% % \tt{chn\_out} &\quad\tt{<}\sim\quad \sigma_{x=1}\tt{(B)}\\
+% \end{align}
+% is rewritten as
+% \begin{align}
+% (\tt{A}_\exists, \tt{A}_\top) &\quad\tt{<+}\quad (\tt{A}_\exists, \tt{A}_\top)\\
+% (\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<+}\quad (\tt{B}_\exists, \tt{A}_\top)\\
+% (\tt{C}_\exists, \tt{C}_\top) &\quad\tt{<+}\quad (\tt{C}_\exists, \tt{A}_\top)\\
+% \nonumber\\
+% (\tt{A}_\exists, \tt{A}_\top) &\quad\tt{<=}\quad (\tt{chn\_in},\emptyset)\\
+% % \tt{chn\_ack\_in} &\quad\tt{<}\sim\quad \tt{chn\_in}\\
+% \nonumber\\
+% (\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<=}\quad (\pi_{x,y}\tt{(}\tt{A}_\exists \cup \tt{A}_\top\tt{)}, \emptyset)\\
+% \nonumber\\
+% (\tt{C}_\exists, \tt{C}_\top) &\quad\tt{<+}\quad (\pi_z\tt{(}\tt{A}_\exists \cup \tt{A}_\top\tt{)}, \emptyset)\\
+% \nonumber\\
+% % \tt{chn\_out} &\quad\tt{<}\sim\quad \sigma_{x=1}\tt{(}\tt{B}_\exists^{now} \cup \tt{B}_\top^{now}\tt{)}\\
+% % \tt{chn\_approx\_out} &\quad\tt{<=}\quad \tt{chn\_ack\_out}\\
+% % \nonumber\\
+% (\tt{A}_\exists, \tt{A}_\top)
+% &\quad\tt{<=}\quad
+% (\emptyset, (\tt{A}_\exists \cup \tt{A}_\top) \bowtie_{x,y} (\tt{B}_\exists \cup \tt{B}_\top)
+% \cap
+% ((\tt{A}_\exists \cup \tt{A}_\top) \bowtie_{z} (\tt{C}_\exists \cup \tt{C}_\top))\\
+% % (\tt{B}_\exists^{now}, \tt{B}_\top^{now})
+% % &\quad\tt{<=}\quad (\emptyset, (\tt{B}_\exists^{now} \cup \tt{B}_\top^{now}) \bowtie \tt{chn\_approx\_out})\\
+% \end{align}
+
+
+\subsection{Properties of GC rules}
+For our rewrite to be sensible, we require that the GC rules have certain properties.
+In particular, the GC rules must be safe -- they should only tombstone tuples that have no effect on future derivations.
+
+\begin{invariant}[Merge GC Invariant]\label{inv:merge_gc}
+Consider any merge or deferred merge rule 
+\[R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}\]
+where $\tt{<op>}$ is either $\tt{<=}$ or $\tt{<+}$,
+$\tt{A}_1,\dots,\tt{A}_n$ are tables without keys,
+$\tt{U}_1,\dots,\tt{U}_m$ are tables with keys,
+and RHS is not a channel.
+We require that, 
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,
+\quad
+\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle \geq \langle \tt{U}_{1,\exists}, \dots, \tt{U}_{m,\exists} \rangle$
+such that $\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top} = \dots = \widehat{\tt{U}}_1 \cap \tt{U}_{m,\top}$:
+\begin{align}
+\tt{f(}\widehat{\tt{A}}_1,\dots,\widehat{\tt{A}}_n, \widehat{\tt{U}}_{1,\exists},\dots,\widehat{\tt{U}}_{n,\exists}\tt{)}
+\cup \tt{B}_\exists\cup \tt{B}_\top
+~=~
+\tt{f(}
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top},\dots,\widehat{\tt{A}}_n \cup \tt{A}_{n,\top}, \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top},\dots,\widehat{\tt{U}}_n \cup \tt{U}_{n,\top}\tt{)} 
+\cup \tt{B}_\exists \cup \tt{B}_\top.
+\label{eq:inv_merge_gc}
+\end{align}
+\end{invariant}
+
+We are interested in keeping around only $\langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle$ instead of $\langle \tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists}  \cup \tt{A}_{n,\top}\rangle$.
+However, in the process of executing $\mathfrak{P}_{GC}$, we may find ourselves with a larger\footnote{
+	The restrictions of Edelweiss ensures that lattices can only grow over time.
+    In Dedalus$^+$ terminology, the program is `temporally inflationary'.
+} lattice $\langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle$.
+In such a case, we wish to ensure that the execution of $R$ in $\mathfrak{P}_{GC}$ (LHS of \eqref{eq:inv_merge_gc}) matches the corresponding execution of $R$ in $\mathfrak{P}$ (RHS of \eqref{eq:inv_merge_gc}) as if we had not reclaimed $\tt{A}_{1,\top}, \dots, \tt{A}_{n,\top}$.
+As we will see in the examples below, the invariant often reduces to a simple intuitive assertion.
+
+
+\begin{property}[GC Rule Output Respect]
+A garbage collection rule $\tt{GC}$ \emph{respects output relations} if it does not tombstone tuples from output relations.
+That is, letting $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$, then whenever $\tt{A}_j$ is an output relation and $\tt{A}_{n,\top} = \emptyset$, it must be the case that $\tt{A}_{j,\top}^* = \emptyset$
+\end{property}
+
+\begin{property}[Merge GC Safety]
+Let $R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ be a merge or deferred merge rule.
+A garbage collection rule $\tt{GC}$ is safe for $R$ if it respects output relations, and maintains the Merge GC Invariant \ref{inv:merge_gc} for $R$.
+That is, if $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, \tt{U}_{m,TS} \rangle$ and $\tt{B}_{TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc} for $R$, then $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*, \tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$ and $\tt{B}_{TS}$ also satisfies the Merge GC Invariant \ref{inv:merge_gc}.
+\end{property}
+
+\begin{property}[GC Rule Monotonicity]
+% Suppose $\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc}.
+% Suppose that $\tt{A}'_{1,TS}, \dots, \tt{A}'_{n,TS}, \tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS}$ also satisfies Merge GC Invariant \ref{inv:merge_gc} and 
+Suppose that $\tt{A}'_{i,TS} \geq \tt{A}_{i,TS}$ and $\tt{B}'_{j,TS} \geq \tt{B}_{j,TS}$.
+Then, $\tt{GC}$ is \emph{monotone} if $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) \leq \tt{GC}(\tt{A}'_{1,TS}, \dots, \tt{A}'_{n,TS}; \tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS})$.
+\end{property}
+
+\begin{property}[GC Rule Conservation]
+\label{property:gc_conservative}
+For a garbage collection rule $\tt{GC}$, denote
+$\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$.
+Then, $\tt{GC}$ is \emph{conservative} if $\tt{A}_{j,\exists}^* \subseteq \tt{A}_{j,\exists}$ and $\tt{A}_{j,\exists}^* \cup \tt{A}_{j,\top}^* = \tt{A}_{j,\exists} \cup \tt{A}_{j,\top}$ for all $j=1,\dots,n$.
+That is, $\tt{GC}$ only moves tuples from $\exists$ to $\top$.
+\end{property}
+
+\subsection{Examples of GC rules}
+\label{sec:logical:example}
+A number of example logical garbage collection rules are presented below.
+Each of these rules are monotone, conservative, and safe for some rule $R$.
+\begin{example}[Trivial GC]
+$\tt{GCTrivial}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS} \rangle$.
+\end{example}
+The trivial GC returns the tombstone lattices unchanged.
+If $\tt{A}_1, \dots, \tt{A}_n$ are all output relations, then $\tt{GCTrivial}$ is the only garbage collection rule that respects output relations.
+
+\begin{example}[Indicator GC]
+Consider the indicator function $\tt{f}$ with $\tt{f}\tt{(}\tt{X}\tt{)} = \emptyset$ if $\tt{X} = \emptyset$ and $\{1\}$ otherwise, and $R: \tt{B} ~\tt{<=}~ \tt{f}\tt{(}\tt{X}\tt{)}$.
+Suppose that $\emptyset \subseteq \tt{X} \subseteq \{a,b,c\}$.
+Define $\tt{GCInd}_{safe}$, $\tt{GCInd}_2$, and $\tt{GCInd}_3$ as
+% \begin{align*}
+% \tt{GCInd}_1(\tt{X}_{TS}; \tt{B}_{TS}) = \begin{cases}
+% \emptyset & c\\
+% d & e\\
+% \end{cases}
+% &&
+% a = \begin{cases}
+% b & c\\
+% d & e\\
+% \end{cases}
+% &&
+% a = \begin{cases}
+% b & c\\
+% d & e\\
+% \end{cases}
+% \end{align*}
+\end{example}
+
+GC on indicator: $\emptyset -> 0$, non-$\emptyset -> 1$.
+If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI but not monotone.
+If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b,c then not satisfies GCI but monotone.
+If GC(a,b) = a, GC(a,c) = a, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI and monotone.
+
+\begin{example}[Copy GC]
+Suppose $\tt{A}$ appears as input on the RHS of rules $R_i: \tt{B}_i ~\tt{<op>}~ \tt{A}$, where $\tt{<op>}$ is either a merge or deferred merge.
+Then $\tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \left(\tt{A}_\exists - \tt{B}_\cap, \tt{A}_\top \cup \tt{B}_\cap\right)$,
+where $\tt{B}_\cap = \tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$,
+is a monotone, conservative garbage collection rule that is safe for $R_1, \dots, R_n$.
+\end{example}
+Clearly, $\tt{GCCopy}$ is conservative.
+For the copy rule, the Merge GC Invariant \ref{inv:merge_gc} reduces to $\forall i, \tt{A}_\exists \cup \tt{B}_{i,\exists} \cup \tt{B}_{i,\top} = \tt{A}_\exists \cup \tt{A}_\top \cup \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, which is the case iff $\tt{A}_\top \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, since $\tt{A}_\exists \cap \tt{A}_\top = \emptyset$.
+That is, tombstoned tuples are those that have been copied to all $\tt{B}_i$'s.
+Hence, if $\tt{A}_{TS}, \tt{B}_{i,TS}$ satisfies Invariant \ref{inv:merge_gc}, we have $\tt{A}_\top \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, and so $\tt{A}_\top \cup \tt{B}_\cap = \tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right) \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$.
+Therefore, $\tt{GCCopy}$ is safe for $R_i$.
+
+Suppose $\tt{A}_\text{TS}' \geq \tt{A}_\text{TS}$, i.e., $\tt{A}_\top' \supseteq \tt{A}_\top$ and $\tt{A}_\top' \cup \tt{A}_\exists' \supseteq \tt{A}_\top \cup \tt{A}_\exists$.
+Suppose also $\tt{A}_\text{TS}'$ satisfies the Merge GC Invariant \ref{inv:merge_gc} with respect to $\tt{B}_{i,\text{TS}}' \geq \tt{B}_{i,\text{TS}}$.
+Then
+\begin{align*}
+\tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
+&\subseteq \tt{A}_\top' \cup \left((\tt{A}_\exists' \cup \tt{A}_\top') \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right)
+% \\
+% &= \tt{A}_\top' \cup \left(\tt{A}_\exists' \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right) \cup \left(\tt{A}_\top' \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right)\\
+&= \tt{A}_\top' \cup \left(\tt{A}_\exists' \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right).
+\end{align*}
+Furthermore, it follows from the GC Rule Conservation Property \ref{property:gc_conservative}, we also have that $(\tt{A}_\exists - \tt{B}_\cap) \cup (\tt{A}_\top \cup \tt{B}_\cap) \subseteq (\tt{A}_\exists' - \tt{B}_\cap') \cup (\tt{A}_\top' \cup \tt{B}_\cap')$.
+Hence, $\tt{GCcopy}$ is monotone.
+
+Note also that if the copies are done via a (non-deferred) merge, and if we reach a fixed point at $t$, $\iota$, then it must be that $\tt{B}_{i,\exists,t,\iota} \cup \tt{B}_{i,\top,t,\iota} \supseteq \tt{A}_{\exists,t,\iota} \cup \tt{A}_{\top,t,\iota}$, so $\tt{GCCopy}$ can tombstone all of $\tt{A}_\exists$.
+~
+
+% GC-Max: GC on A, B gives some tombstones larger than GC on any A' < A, B' < B, and is of largest cardinality among all such tombstones.
+% Note: GC-Max is not unique; but since monotone, will still give a unique minimal model for each GC-Max rule.
+
+\begin{example}[Project GC]
+\label{ex:project_gc}
+Consider the projection $R: \tt{B} ~\tt{<op>}~ \pi_S(\tt{A})$, where $\tt{<op>}$ is a merge or deferred merge.
+Then $\tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS}) = (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*)$ where $\tt{A}^* = \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\}$
+is safe for $R$.
+\end{example}
+Simple relational algebraic calculations would show that the Merge GC Invariant \ref{inv:merge_gc} reduces to $\pi_S(\tt{A}_\top) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+By definition, $\pi_L(\tt{A}^*) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+Hence, if $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfies the invariant, then $\pi_L(\tt{A}_\top \cup \tt{A}^*) = \pi_L(\tt{A}_\top) \cup \pi_L(\tt{A}^*) \subseteq \tt{B}_\exists \cup \tt{B}_\top$, so $\tt{GCProject}$ is safe for $R$. 
+
+\begin{example}[Select GC]
+Consider the selection $R: \tt{B} ~\tt{<op>}~ \sigma_P(\tt{A})$, where $\tt{<op>}$ is either a merge or deferred merge.
+Then $\tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS}) = (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*)$ where $\tt{A}^* = \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))$ is safe for $R$.
+\end{example}
+Similar to Example \ref{ex:project_gc}, the Merge GC Invariant \ref{inv:merge_gc} for selection reduces to $\sigma_P(\tt{A}_\top) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+If $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfy the invariant, then
+\begin{align*}
+\sigma_P(\tt{A}_\top \cup \tt{A}^*)
+&= \sigma_P(\tt{A}_\top) \cup \sigma_P(\sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)))\\
+&= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
+&= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
+&\subseteq \tt{B}_\exists \cup \tt{B}_\top,
+\end{align*}
+so $\tt{GCSelect}$ is safe for $R$.
+
+\begin{example}[Join GC]
+\label{ex:join_gc_no_punctuations}
+Consider the join $R: \tt{B} ~\tt{<op>}~ \tt{A} \bowtie_{\tt{A}.k_a = \tt{C}.k_c} \tt{C}$, where $\tt{<op>}$ is either a merge or deferred merge.
+The only garbage collection rule that is safe for $R$ is the trivial $\tt{GCTrivial}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle \tt{A}_{TS}, \tt{C}_{TS} \rangle$.
+\end{example}
+Without additional information, one cannot guarantee that a tuple in $\tt{A}$ will not match any future tuple in $\tt{C}$ and vice versa.
+In some cases, however, one may be provided with the specific information that no more tuples matching the attribute will ever appear\footnote{
+	The astute reader might recognize that coordination is required to make this determination; specifically, the notification of completeness must arrive \emph{after} all such tuples have been received.
+    However, we can circumvent this problem by augmenting the notification with a manifest listing all the tuples that match the attribute.
+}.
+
+Formally, let $\mathcal{X}$ be the domain of possible tuples for a table $\tt{X}$, and denote the powerset of $\mathcal{X}$ as $\mathbb{P}(\mathcal{X})$.
+Also let $\mathcal{K}$ be the domain of possible values of an attribute $\tt{X}.k$.
+A punctuation $p = (p.k, p.\tt{X}) \in \mathcal{K} \times \mathbb{P}(\mathcal{X})$ maps a key in $\mathcal{K}$ to a subset of $\mathbb{P}(\mathcal{X})$.
+We denote by $\tt{X}$ by $\tt{P}_\tt{X}$ a table of punctuations (with $k$ as its primary key) for $\tt{X}$, and say it is consistent with $\tt{X}$ if $\forall p \in \tt{P}_\tt{X}$, $p.\tt{X} \supseteq \{x \in \tt{X} ~:~ x.k = p.k\}$.
+We will always assume that punctuation tables are always consistent.
+
+In the join rule above, we can reclaim from $\tt{A}$ given punctuations on $\tt{C}$ and vice versa:
+
+\begin{example}[Join with punctuations]
+Consider the join in Example \ref{ex:join_gc_no_punctuations}, now augmented with punctuation tables $\tt{P}_\tt{A}$ and $\tt{P}_\tt{C}$.
+(If punctuations are not available, we can always let $\tt{P} = \emptyset$ with no loss of generality.)
+The garbage collection rule $\tt{GCJoin}(\tt{A}_{TS}, \tt{P}_{\tt{A},TS}, \tt{C}_{TS}, \tt{P}_{\tt{C},TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{P}_{\tt{A},\exists} - \tt{P}_\tt{A}^*, \tt{P}_{\tt{A},\top} \cup \tt{P}_\tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*), (\tt{P}_{\tt{C},\exists} - \tt{P}_\tt{C}^*, \tt{P}_{\tt{C},\top} \cup \tt{P}_\tt{C}^*) \rangle$, with
+\begin{align*}
+\tt{A}^* &= \left\{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\right\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
+\tt{C}^* &= \left\{c \in \tt{C}_\exists \cup \tt{C}_\top ~:~ \exists p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(p_a.\tt{A} \times \{c\} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\right\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}
+\end{align*}
+is safe for the join.
+\end{example}
+In words, a tuple $a$ can be tombstoned if it matches a punctuation $p_c$ in $\tt{P}_\tt{C}$ \emph{and} the result of joining $\{a\}$ with $\tt{C}$ is already effected in $\tt{B}_{TS}$.
+Hence, any $c \in \tt{C}$ either does not match $a$, or is already joined with $a$ in $\tt{B}$ and so will not affect any future join computation.
+In addition, we tombstone a punctuation $p_a$ if it matches a punctuation $p_c$ and the join of their sets $p_a.\tt{A} \times p_c.\tt{C}$ is already effected in $\tt{B}_{TS}$.
+It is a simple exercise to show that $\tt{GCJoin}$ tombstones a punctuation $p_a$ only when its set $p_a.\tt{A}$ is tombstoned (or does not exist yet), i.e., $(p_a \in \tt{P}_{\tt{A},\top}) \implies \tt{A}_\exists \cap p_a.\tt{A} = \emptyset$.
+
+\begin{example}[DR+: Positive Difference Reclamation]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then the rule $\tt{GCDR+}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), \tt{C}_{TS}\rangle$
+where $\tt{A}^* = (\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)$
+is safe for $R$.
+\end{example}
+For set differences, the Merge GC Invariant \ref{inv:merge_gc} reduces to
+$\forall \widehat{\tt{A}} \supseteq \tt{A}_\exists, \forall \widehat{\tt{C}} \supseteq \tt{C}_\exists$: $\widehat{\tt{A}} - \widehat{\tt{C}} = (\widehat{\tt{A}} \cup \tt{A}_\top) - (\widehat{\tt{C}} \cup \tt{C}_\top)$.
+In the case where $\widehat{\tt{A}} = \tt{A}_\exists$ and $\widehat{\tt{C}} = \tt{C}_\exists$, it implies that $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$;
+in the case where $\widehat{\tt{A}} = \tt{A}_\exists \cup \tt{C}_\top$ and $\widehat{\tt{C}} = \tt{A}_\exists \cup \tt{C}_\exists$, it implies that $\tt{C}_\top = \emptyset$.
+Conversely $\tt{C}_\top = \emptyset$ and $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$ suffices to satisfy the invariant.
+One can now easily verify that $\tt{GCDR+}$ maintains the invariant.
+
+\begin{example}[DR-: Negative Difference Reclamation]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge, and $\tt{A}$ is a table with primary keys.
+Then the rule $\tt{GCDR-}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*)\rangle$,
+where $\tt{A}^* = (\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)$ and $\tt{C}^* = (\tt{C}_\exists \cup \tt{C}_\top) \cap \tt{A}_\top$,
+is safe for $R$.
+\end{example}
+Since primary keys are available for $\tt{A}$, the Merge GC Invariant \ref{inv:merge_gc} reduces to
+$\forall \widehat{\tt{A}} \supseteq \tt{A}_\exists, \widehat{\tt{A}} \cap \tt{A}_\top = \emptyset, \forall \widehat{\tt{C}} \supseteq \tt{C}_\exists$: $\widehat{\tt{A}} - \widehat{\tt{C}} = (\widehat{\tt{A}} \cup \tt{A}_\top) - (\widehat{\tt{C}} \cup \tt{C}_\top)$.
+In the case where $\widehat{\tt{A}} = \tt{A}_\exists$ and $\widehat{\tt{C}} = \tt{C}_\exists$, it implies that $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$;
+in the case where $\widehat{\tt{A}} = \tt{A}_\exists \cup (\tt{C}_\top - \tt{A}_\top)$ and $\widehat{\tt{C}} = \tt{A}_\exists \cup \tt{C}_\exists$, it implies that $\tt{C}_\top \subseteq \tt{A}_\top$.
+Conversely $\tt{C}_\top \subseteq \tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$ suffices to satisfy the invariant.
+One can now easily verify that $\tt{GCDR-}$ maintains the invariant.
+
+
+
+
+
+\subsection{Analysis of GC Rewrite}
+
+\subsubsection{Correctness}
+\label{sec:logical:analysis:correctness}
+
+\begin{lemma}
+\label{lem:unchangedexists}
+For every set $\tt{A}$, we have that $\tt{A}_{\top,t,i} = \tt{A}_{\top,t,0}$.
+\end{lemma}
+\begin{proof}
+The proof is straightforward: all non-GC rules are of the form $(\tt{A}_\exists, \tt{A}_\top) ~\tt{<op>}~ (\tt{X}, \emptyset)$, and all GC rules are deferred merges.
+Thus, $\tt{A}_\top$ is unchanged during an instantaneous run.
+\end{proof}
+Due to Lemma \ref{lem:unchangedexists}, we can write $\tt{A}_{\top,t}$ in place of $\tt{A}_{\top,t,i}$.
+
+\begin{lemma}
+\label{lem:merge_gc_inv}
+The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc}.
+\end{lemma}
+\begin{proof}
+We prove the lemma by an induction on $t$ and $i$.
+That is, we show for every $t$ and $i$,
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle$,
+such that
+$\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top,t,i} = \dots =  \widehat{\tt{U}}_n \cap \tt{U}_{n,\top,t,i}$,
+\begin{align}
+&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+	\widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+	\widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}
+\nonumber\\
+=&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}. \label{eq:mergegcinv_withtime}
+\end{align}
+At $t=0$, $i=0$, we have $\tt{A}_{k,\top,0} = \tt{U}_{j,\top,0} = \tt{B}_{\top,0} = \emptyset$ for all $j=1,\dots,m$ and $k=1,\dots,n$, so the statement \eqref{eq:mergegcinv_withtime} is trivially true.
+
+Assume that \eqref{eq:mergegcinv_withtime} is true at some $t$ and $i-1$.
+The assignment at $t$, $i$, is derived from applying a merge operator to the assignment at $t$, $i-1$, and may only grow $\tt{A}_{1,\exists}, \dots, \tt{A}_{n,\exists}$, $\tt{U}_{1,\exists}, \dots, \tt{U}_{m,\exists}$, and $\tt{B}_\exists$,
+but keeps $\tt{A}_{1,\top}, \dots, \tt{A}_{n,\top}$, $\tt{U}_{1,\top}, \dots, \tt{U}_{m,\top}$, and $\tt{B}_\top$ unchanged.
+This also implies that $\widehat{\tt{U}}_k \cap \tt{U}_{k,\top,t,i-1} = \emptyset \implies \widehat{\tt{U}}_k \cap \tt{U}_{k,\top,t,i-1} = \emptyset$.
+Write $\widetilde{\tt{B}} = \tt{B}_{\exists,t,i} - \tt{B}_{\exists,t,i-1}$.
+Then, $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle \geq \langle \tt{A}_{1,\exists,t,i-1},\dots,\tt{A}_{n,\exists,t,i-1} \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle \geq \langle \tt{U}_{1,\exists,t,i-1},\dots,\tt{U}_{n,\exists,t,i-1} \rangle$,
+such that
+$\forall j=1,\dots,m$, $\widehat{\tt{U}}_j \cap \tt{U}_{1,\top,t} = \emptyset$,
+\begin{align*}
+&\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+	\widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+	\widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}\\
+=&
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+	\widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+	\widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}\\
+=&
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}\\
+=&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}
+\end{align*}
+where the second equality follows from the inductive hypothesis.
+
+Next, we show that if \eqref{eq:mergegcinv_withtime} is true at some fixed point $t-1$ and $i=\iota$, then it is also true at $t$, $i=0$.
+By design / assumption, there is only one garbage collection rule $\tt{GC}$ in $\mathfrak{P}_{GC}$ that has any of $\tt{A}_{1,TS},\dots,\tt{A}_{n,TS}$ on its LHS.
+Note that we can express $\forall j=1,\dots,n$,
+\begin{align*}
+(\tt{A}_{j,\exists,t,0}, \tt{A}_{j,\top,t})
+= (\tt{A}_{j,\exists,t-1,\iota}, \tt{A}_{j,\top,t-1})
+\cup (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)
+\cup \bigcup_{k=1}^l (g_k(\tt{C}_{k1,TS,t-1,\iota}, \dots, \tt{C}_{kn_k,TS,t-1,\iota}), \emptyset)
+\end{align*}
+where $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*\rangle = \tt{GC}(\tt{A}_{1,TS,t-1,\iota}, \dots, \tt{A}_{n,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{m,TS,t-1,\iota})$.
+By the conservative property of $\tt{GC}$, $(\tt{A}_{j,\exists,t-1,\iota}, \tt{A}_{j,\top,t-1}) \leq (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)$, so the above equation can be written as
+\begin{align*}
+(\tt{A}_{j,\exists,t,0}, \tt{A}_{j,\top,t})
+= (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)
+\cup \bigcup_{k=1}^l (g_k(\tt{C}_{k1,TS,t-1,\iota}, \dots, \tt{C}_{kn_k,TS,t-1,\iota}), \emptyset)
+\end{align*}
+which implies $\tt{A}_{j,\exists,t,0} \supseteq \tt{A}_{j,\exists}^*$ and $\tt{A}_{j,\top,t} = \tt{A}_{j,\top}^*$.
+
+The same holds for $\tt{U}_j$ for $j=1,\dots,m$, which further implies that $\widehat{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \emptyset \implies \widehat{\tt{U}}_j \cap \tt{U}_{j,\top,t} = \emptyset$.
+
+Also, by the monotonicity of $\tt{<+}$, we see that $\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}$.
+Let $\widetilde{\tt{B}} = (\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}) - (\tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1})$, and observe that $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n \rangle \geq \langle \tt{A}_{1,\exists,t,0}, \dots, \tt{A}_{n,\exists,t,0} \rangle \geq \langle \tt{A}_{1,\exists}^*, \dots, \tt{A}_{n,\exists}^* \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n \rangle \geq \langle \tt{U}_{1,\exists,t,0}, \dots, \tt{U}_{n,\exists,t,0} \rangle \geq \langle \tt{U}_{1,\exists}^*, \dots, \tt{U}_{n,\exists}^* \rangle$,
+such that $\emptyset = \widetilde{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \widetilde{\tt{U}}_{j,\top,t}$ for all $j = 1,\dots,m$,
+\begin{align*}
+&
+\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}
+\cup \tt{f}(\widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n, \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m)
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(\widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n, \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m)
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top}^*, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top}^*,
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top}^*, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top}^*)
+&\text{(\tt{GC} safety)}
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t}, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t}, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t})
+\\
+=&~
+\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t}, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t}, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t})
+\end{align*}
+which establishes that the Merge GC Invariant \ref{inv:merge_gc} holds at $t$ and $i=0$.
+\end{proof}
+
+\begin{rmk}
+Lemma \ref{lem:merge_gc_inv} is required for showing that the instantiated GC program $\mathfrak{P}_{iGC}$ presented later is correct, but not used in the below Theorem \ref{thm:equivalence_of_sets} establishing correctness of $\mathfrak{P}_{GC}$.
+\end{rmk}
+
+
+
+
+It is easy to see that $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ have equivalent output sets.
+That is, every run of $\mathfrak{P}$ has a one-to-one corresponding run of $\mathfrak{P}_{GC}$ that produces lattices such that $\tt{A}_\exists \cup \tt{A}_\top = \tt{A}$.
+And in particular, for output sets where no garbage collection is performed, we get $\tt{A}_\exists = \tt{A}$.
+
+\begin{thm}
+\label{thm:equivalence_of_sets}
+For every set $\tt{A}$, we have that $\tt{A}_{t,i} = \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.
+\end{thm}
+\begin{proof}
+We will again prove the theorem via induction.
+
+Clearly this is true for $t=i=0$.
+
+Now suppose that it is true at some $t$ and $i-1$, and we will show it holds at $t$ and $i$.
+During the instantaneous run, the only rules that we are concerned with are merges where $\tt{A}$ appears on the LHS.
+If the rule is of the form $\tt{A} ~\tt{<=}~ \overline{\tt{C}}$ with a channel on the RHS, then
+\begin{align*}
+\tt{A}_{t,i}
+= \tt{A}_{t,i-1} \cup \overline{\tt{C}}_{t}
+= \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \overline{\tt{C}}_{t}
+= \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}.
+\end{align*}
+If the merge rule is of the form $\tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{C}_1,\dots,\tt{C}_n\tt{)}$, then
+\begin{align*}
+\tt{A}_{t,i}
+&= \tt{A}_{t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,t,i-1},\dots,\tt{C}_{n,t,i-1}\tt{)}\\
+&= \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1}\cup\tt{C}_{1,\top,t},\dots,\tt{C}_{n,\exists,t,i-1}\cup\tt{C}_{n,\top,t}\tt{)}\\
+&= \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t},
+\end{align*}
+where we used the inductive hypothesis in the second equality.
+
+Suppose $\mathfrak{P}$ reaches a fixed point for time $t$ at $i=\iota$.
+We will next show that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
+We must first establish that the rewritten program will reach a fixed point for timestep $t$.
+
+\begin{claim}
+If $\mathfrak{P}$ reaches a fixed point at $t$, $\mathfrak{P}_{GC}$ also reaches a fixed point.
+(This statement should be made more formal.)
+\end{claim}
+\begin{claimproof}
+From the previous argument, we know that $\tt{A}_{\exists,t,j} \cup \tt{A}_{\top,t,i} = \tt{A}_{t,j}$ for all $j \geq \iota$.
+But $\tt{A}_{t,j} = \tt{A}_{t,\iota}$ and $\tt{A}_{\top,t,i} = \tt{A}_{\top,t,0}$ are constant independent of $j$, which implies $\tt{A}_{\exists,t,j} = \tt{A}_{\exists,t,\iota}$.
+Hence, $\mathfrak{P}_{GC}$ also reaches at fixed point at $t$, $i=\iota$.
+\end{claimproof}
+
+Finally, suppose we have $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle ~\tt{<+}~ \tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
+Then,
+\begin{align*}
+&\tt{A}_{t,0}\\
+=& \tt{A}_{t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,t-1,\iota},\dots,\tt{C}_{j,n_j,t-1,\iota}\tt{)}\\
+=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+\cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
+=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+\cup \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*
+\cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
+=& \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}.
+\end{align*}
+Thus, we have established that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
+\end{proof}
+
+For output sets, we never perform garbage collection, and hence always have equivalence of the sets in $\mathfrak{P}$ and $\mathfrak{P}_{GC}$.
+The below corollary formally states this.
+\begin{cor}
+\label{cor:equivalence_of_output}
+If a set $\tt{A}$ is an output set, it has $\tt{A}_{\top,t} = \emptyset$, and hence $\tt{A}_{t,i} = \tt{A}_{\exists,t,i}$.
+\end{cor}
+
+
+
+\subsubsection{Incomplete}
+Give example of not deleting all reclaimable.
+
+1. Non-uniqueness of reclaimable set. Indicator of non-emptiness: GC(a,b) can only reclaim one of a or b, but not both
+
+2. Incompleteness of information. Deleted tuples are not available for reasoning.
+Consider $A \wedge B => C; view = C.notin(D)$
+If a tuple $x$ has appeared in $A$ and $B$, it will be derived in $C$, and then tombstoned from $A$ and $B$.
+If $x$ is also in $D$, we also tombstone $x$ in $C$.
+At the next timestep, $x$ is deleted from $A$, $B$, and $C$.
+If $A$ now receives $x$, we cannot determine from $A$, $B$, $C$ that $x$ can be reclaimed.
+We could deduce that $x$ can be reclaimed from $A$ by also examining $D$;
+however, that would require multi-rule reasoning, and in the worst case, reasoning about $\mathfrak{P}_{GC}$ in its entirety.
+
+
+\subsubsection{Coordination-freeness}
+
+\begin{thm}
+\label{thm:coord-free}
+$\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$.
+If $\mathfrak{P}$ is confluent in all tables, then $\mathfrak{P}_{GC}$ is also confluent in all tables.
+In particular, if all functions $\tt{f}$'s are monotone, then $\mathfrak{P}$ is expressed in monotone Bloom, $\mathfrak{P}_{GC}$ is expressed in monotone Bloom$^L$, and both $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ are confluent.
+\end{thm}
+\begin{rmk}
+This is a stronger but different statement than Theorem \ref{thm:equivalence_of_sets} and Corollary \ref{cor:equivalence_of_output}.
+In particular, it says that every run of $\mathfrak{P}_{GC}$ produces the same $\tt{A}_\exists$ and $\tt{A}_\top$.
+As we will see later, this is not the case for the instantiated program $\mathfrak{P}_{iGC}$.
+\end{rmk}
+\begin{proof}
+Rules in $\mathfrak{P}$ either correspond to rules in $\mathfrak{P}$, or are new garbage collection rules.
+In the first case, we replace the rule $R: \tt{B} ~\tt{<op>}~ \tt{f}(\tt{A}_1,\dots,\tt{A}_n\tt{)}$ with $(\tt{B}_\exists, \tt{B}_\top) ~\tt{<op>}~ (\tt{f}(\tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists} \cup \tt{A}_{n,\top} \tt{)}$, which requires a mapping $(\tt{X}_\exists, \tt{X}_\top) \mapsto \tt{X}_\exists \cup \tt{X}_\top$ and the projection $\tt{X} \mapsto (\tt{X}, \emptyset)$, both of which are monotone.
+Hence, the corresponding rule in $\mathfrak{P}$ is monotone if $\tt{f}$ is monotone.
+In the second case, our $\tt{GC}$ rules are monotone, and involve a deferred merge, and thus do not require additional coordination.
+
+Suppose $\mathfrak{P}$ is confluent in all sets.
+Theorem \ref{thm:equivalence_of_sets} implies $\tt{A}_{\exists} \cup \tt{A}_\top = \tt{A}$ is confluent in $\mathfrak{P}_{GC}$.
+The only rules in $\mathfrak{P}_{GC}$ that promote tuples from $\exists$ to $\top$ are GC rules; since these rules are monotone, the tombstone lattices are also confluent.
+\end{proof}
+
+\begin{cor}
+\label{cor:confluence_of_output}
+If $\tt{A}$ is an output set, and $\mathfrak{P}$ is confluent, then every run of $\mathfrak{P}_{GC}$ produces $\tt{A}_\exists = \tt{A}$.
+\end{cor}
+
+% Our stated goal was to reconcile garbage collection with CALM consistency.
+% The astute read might have noticed that we have sneaked in a non-monotone function in \eqref{eq:aexistmerge} to project $(\tt{A}_\exists, \tt{A}_\top)$ to $(\tt{A}_\exists, \emptyset)$, and thus $\mathfrak{P}_{GC}$ is not expressed in monotone Bloom$^L$ or stratified Bloom$^L$.
+% Indeed, while Corollary \ref{cor:equivalence_of_output} and \ref{cor:confluence_of_output} state our output sets are confluent in $\mathfrak{P}_{GC}$, non-output sets \emph{may not} be confluent in $\mathfrak{P}_{GC}$.
+% In particular, different runs (with different message-time assignments) can result in a different partitioning of a non-output $\tt{A}$ into $\tt{A}_\exists$ and $\tt{A}_\top$.
+
+% However, a close examination of the analysis of \cite{marczak2012confluence} (and of our Bloom$^L$ formalism writeup) would reveal that while all lattices are confluent in any monotone Bloom$^L$ program, it is not necessarily the case that no lattices are confluent in a non-monotone Bloom$^L$ program.
+% Our GC program $\mathfrak{P}_{GC}$ is exactly an example of a program confluent in some sets and expressed in non-monotone Bloom$^L$.
+
+% In fact, both \cite{ameloot2013relational} and \cite{marczak2012confluence} defined ``confluence'' or ``eventual consistency'' in terms of output sets, and allowed for non-output sets that are possibly not eventually consistent.
+% Dedalus$^+$ and monotone Bloom$^L$ restrict the programming language such that \emph{every} derived fact is provably eventually always true.
+% We instead use the GC Invariant \ref{inv:merge_gc} to ensure that output sets are eventually always true (as long as $\mathfrak{P}$ is itself confluent), while allowing for non-output sets to be non-confluent.
+
+% In the CALM analysis (refer to our transducer writeup), ``coordination'' is required if and only if a query can only be computed after establishing the completeness of its input, which is exactly the case for non-monotone queries.
+% Although we have introduced a non-monotone projection, the GC invariance asserts that downstream computations are consistent regardless of future input.
+% In other words, the GC invariance states that outputs can be computed without knowledge of input completeness!
+
+
+
+
+\section{Instantiated Garbage Collection}
+
+\subsection{Rewrite}
+
+\subsubsection{State}
+For a table $\tt{A}$ without primary keys in $\mathfrak{P}$, we introduce a corresponding $\tt{A}_I$ in $\mathfrak{P}_{iGC}$, and is persisted
+\[\tt{A}_I \quad\tt{<+}\quad \tt{A}_I\]
+
+For every table $\tt{A}$ with primary keys in $\mathfrak{P}$, we introduce a lattice $(\tt{A}_I, \tt{A}_!)$ in $\mathfrak{P}_{GC}$.
+Intuitively, $\tt{A}_!$ are the keys of all tuples that, at some point, existed in $\tt{A}$.
+As before, we persist the lattice with the deferred merge
+\[(\tt{A}_I, \tt{A}_!) \quad\tt{<+}\quad (\tt{A}_I, \tt{A}_!).\]
+
+For convenience, we will write $\tt{A}_E$ to mean $(\tt{A}_I, \tt{A}_!)$ if $\tt{A}$ has primary keys, and $\tt{A}_I$ otherwise.
+
+\subsubsection{Merge, Deferred Merge, Asynchronous Merge}
+A rule $R$ in $\mathfrak{P}$,
+\[\tt{B} \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}\]
+where $\tt{<op>}$ is one of $\tt{<=}$, $\tt{<+}$ or $\tt{<}\sim$, is replaced in $\mathfrak{P}_{iGC}$ by
+\[\tt{B}_I \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}\]
+if $\tt{B}$ has no primary keys, and otherwise
+\[(\tt{B}_I, \tt{B}_!) \quad\tt{<op>}\quad (\tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}, \pi_!(\tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}).\]
+
+
+
+
+\subsubsection{Garbage collection}
+A garbage collection rule in $\mathfrak{P}_{GC}$
+\begin{align*}
+\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS} \rangle
+\quad\tt{<+}\quad
+\tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}).
+\end{align*}
+is replaced in $\mathfrak{P}_{iGC}$ by
+\begin{align*}
+\langle \tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E} \rangle
+\quad\tt{<-}\quad
+\tt{GCI}(\tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}).
+\end{align*}
+
+
+
+\subsection{Properties of Instantiated GC rules}
+\begin{property}[Instantiated GC Conservation]\label{property:instantiated_gc_conservative}
+Let $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{GCI}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
+The instantiated GC rule $\tt{GCI}$ is \emph{conservative} if $\forall \tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}$, $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,I}$ and $\tt{A}_{i,!}^- = \pi_!(\tt{A}_{i,I})$.
+\end{property}
+In words, a conservative $\tt{GCI}$ only deletes tuples that it can observe.
+
+\begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
+Suppose $\forall i=1,\dots,n$, $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$, and $\forall i=1,\dots,m$, $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$.
+Let $(\tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*) = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$
+and $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{GCI}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
+Then, $\tt{GCI}$ is \emph{consistent with} $\tt{GC}$ if $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$ if $\tt{A}_i$ does not have primary keys,
+and 
+$\tt{A}_{i,I}^- = \tt{A}_{i,\top}^*$ if $\tt{A}_i$ has primary keys.
+\end{property}
+In words, $\tt{GCI}$ is consistent with $\tt{GC}$ if the tuples that are deleted by $\tt{GCI}$ are a subset of the tuples tombstoned by $\tt{GC}$,
+and in the case where primary keys are available, both $\tt{GC}$ and $\tt{GCI}$ agree on the tombstoned tuples.
+
+We will require that any instantiated garbage collection rule $\tt{GCI}$ for $R$ be conservative and consistent with some logical garbage collection rule $\tt{GC}$, which is itself safe for $R$, conservative, and monotone\footnote{
+	I believe that monotonicity is required only to show $\mathfrak{P}_{GC}$ is confluent in $\tt{A}_\top$, and $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_! - \tt{A}_I$.
+}.
+
+
+
+\subsection{Examples of Instantiated GC rules}
+We now present some examples of instantiated GC rules that are consistent with the logical GC rules presented in Section \ref{sec:logical:example}.
+
+\begin{example}[Copy GC]
+$\tt{iGCCopy}(\tt{A}_I; \tt{B}_{1,I}, \dots, \tt{B}_{m,I}) = \tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}$ is consistent with $\tt{GCCopy}$.
+\end{example}
+Suppose
+$\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$
+and for all $i = 1, \dots, m$:
+$\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$.
+Then,
+\begin{align*}
+\tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}
+% &
+~\subseteq~
+(\tt{A}_\exists \cup \tt{A}_\top) \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})
+% \\
+% &
+% ~=~
+% \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
+% \cup
+% \left(\tt{A}_\top \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)\\
+% &
+~\subseteq~
+\left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
+\cup
+\tt{A}_\top.
+\end{align*}
+Hence, $\tt{iGCCopy}$ is consistent with $\tt{GCCopy}$.
+
+\begin{example}[Project GC]
+$\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\}$ is consistent with $\tt{GCProject}$.
+\end{example}
+
+If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
+clearly $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
+
+\begin{example}[Select GC]
+$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I)$ is consistent with $\tt{GCSelect}$.
+\end{example}
+If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
+simple relational algebra demonstrates that
+$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I) \subseteq \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)) = \tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS})$.
+
+\begin{example}[Join with punctuations]
+$\tt{iGCJoin}(\tt{A}_I, \tt{P}_{\tt{A},E}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},E}^-, \tt{C}_I^-, \tt{P}_{\tt{C},E}^-\rangle$, where
+\begin{align*}
+\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
+\tt{C}^* &= \left\{c \in \tt{C}_\exists \cup \tt{C}_\top ~:~ \exists p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(p_a.\tt{A} \times \{c\} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\right\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}
+\end{align*}
+\end{example}
+
+Join with punctuations
+
+DR+
+
+DR-
+
+
+\subsection{Correctness}
+\begin{thm}[Representation Correctness]
+\label{thm:instantiated_correctness}
+For any set $\tt{A}$ without primary keys in $\mathfrak{P}$ and its corresponding lattice $(\tt{A}_\exists,t, \tt{A}_\top)$ in $\mathfrak{P}_{GC}$ and set $\tt{A}_E$ in $\mathfrak{P}_{iGC}$,
+\begin{align}
+\tt{A}_{\exists,t,i} \subseteq &\tt{A}_{I,t,i} \subseteq \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}.\label{eq:thm_instantiated_correctness_set}
+\end{align}
+If $\tt{A}$ has primary keys, then
+\begin{align}
+\tt{A}_{I,t,i} =& \tt{A}_\exists,\label{eq:thm_instantiated_correctness_set_key}\\
+\tt{A}_{!,t,i} =& \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}).\label{eq:thm_instantiated_correctness_key}
+\end{align}
+As an immediate consequence of \eqref{eq:thm_instantiated_correctness_set_key} and \eqref{eq:thm_instantiated_correctness_key}, we get $\pi_!(\tt{A}_{\top,i}) = \tt{A}_{!,t,i} - \pi_!(\tt{A}_{I,t,i})$ because $\tt{A}_{\exists,t,i} \cap \tt{A}_{\top,t} = \emptyset$
+\end{thm}
+\begin{proof}
+We will again prove by an induction on $t$ and $i$.
+
+At $t=0$, $i=0$, we initialize $\tt{A}_{I,0,0} = \tt{A}_{0,0} = \tt{A}_{\exists,0,0} = \tt{A}_{\exists,0,0} \cup \tt{A}_{\top,0}$, so \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold trivially.
+
+Assume that \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold at some $t$ and $i-1$.
+The assignment at $t$, $i$ is obtained by executing some merge rule $R$ on the assignment at $t$, $i-1$.
+If $\tt{A}$ does not appear on the LHS of $R$, then we are done because $\tt{A}_{E,t,i} = \tt{A}_{E,t,i-1}$ and $\tt{A}_{TS,t,i} = \tt{A}_{TS,t,i-1}$.
+If $\tt{A}$ appears on the LHS of $R$ and the RHS is not a channel, then WLOG let $R: \tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{C}_1, \dots, \tt{C}_n\tt{)}$.
+\begin{align}
+\tt{A}_{\exists,t,i}
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)}) - \tt{A}_{\top,t}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,I,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)} \cup \tt{A}_{\top,t}) - \tt{A}_{\top,t}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)} \cup \tt{A}_{\top,t}) - \tt{A}_{\top,t} & \text{(Lemma \ref{lem:merge_gc_inv})}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - \tt{A}_{\top,t}.\label{eq:thm:ins_correct:instant}
+\end{align}
+If $\tt{A}$ does not have primary keys, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+\subseteq& \tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}
+&= \tt{A}_{I,t,i}\\
+\subseteq& \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}\\
+=& \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)} & \text{(Lemma \ref{lem:merge_gc_inv})}\\
+=& \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}
+\end{align*}
+If $\tt{A}$ has primary keys, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+=& (\tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - (\tt{A}_{!,t,i-1} - \tt{A}_{I,t,i-1})
+&= \tt{A}_{I,t,i},
+\end{align*}
+\begin{align*}
+\tt{A}_{!,t,i}
+&= \tt{A}_{!,t,i-1} \cup \pi_!(\tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t}) \cup \pi_!(\tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)}) & \text{(Lemma \ref{lem:merge_gc_inv})}\\
+&= \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}).
+\end{align*}
+Otherwise, $\tt{A}$ appears on the LHS of $R$ and the RHS of $R$ is a channel $\overline{\tt{C}}$.
+The argument above goes through by replacing $\tt{f}$ with $\overline{\tt{C}}$.
+
+Suppose $\mathfrak{P}_{GC}$ reaches a finite fixed point for time $t$ at $i=\iota$.
+We first establish that $\mathfrak{P}_{iGC}$ also eventually reaches a fixed point for $t$.
+\begin{claim}
+If $\mathfrak{P}_{GC}$ reaches a finite fixed point at $t$, $\iota$, then $\mathfrak{P}_{iGC}$ also eventually reaches a fixed point.
+\end{claim}
+\begin{claimproof}
+By the above argument, $\tt{A}_{I,t,j} \subseteq \tt{A}_{\exists,t,j} \cup \tt{A}_{\top,t} = \tt{A}_{\exists,t,\iota} \cup \tt{A}_{\top,t}$ for all $j \geq \iota$.
+Since $\tt{<=}$ can only increase $\tt{A}_{I,t,j}$ and $\tt{A}_{I,t,j}$ is upper bounded, $\mathfrak{P}_{iGC}$ must also reach a fixed point for $t$ after a finite number of steps after $\iota$.
+\end{claimproof}
+
+Finally, suppose \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold at $t-1$, $\iota$ which is a fixed point of $\mathfrak{P}_{iGC}$ for time $t-1$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $~\tt{<+}~$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Correspondingly, $\tt{A}_E$ appears in (at most) one instantiated GC rule $\langle \tt{A}_E, \tt{D}_{1,E}, \dots, \tt{D}_{k,E} \rangle$ $~\tt{<-}~$ $\tt{GCI}(\tt{A}_{E},$ $\tt{D}_{1,E}, \dots, \tt{D}_{k,E}; \tt{B}_{1,E}, \dots, \tt{B}_{k',E})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle$ $= \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota};$ $\tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and
+$\langle \tt{A}_E^-, \tt{D}_{1,E}^-, \dots, \tt{D}_{k,E}^- \rangle = \tt{GCI}(\tt{A}_{E,t-1,\iota}, \tt{D}_{1,E,t-1,\iota}, \dots, \tt{D}_{k,E,t-1,\iota};$ $\tt{B}_{1,E,t-1,\iota},$ $\dots, \tt{B}_{k',E,t-1,\iota})$.
+By the conservative property of $\tt{GC}$, we have that $\tt{A}_{\exists}^* \subseteq \tt{A}_{\exists,t-1,\iota}$, $\tt{A}_{\top}^* \supseteq \tt{A}_{\top,t-1}$, and $\tt{A}_{\exists}^* \cup \tt{A}_{\top}^* = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,}$.
+By the consistency of $\tt{GCI}$, we have that $\tt{A}_I^- \subseteq \tt{A}_{T}^*$ if $\tt{A}$ has no primary keys, and $\tt{A}_I^- = \tt{A}_{T}^*$ otherwise.
+Hence,
+\begin{align}
+&\tt{A}_{\exists,t,0}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_\exists^* \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)\nonumber\\
+&- \tt{A}_{\top,t-1} - \tt{A}_\top^*\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_\top^* & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_\top^* & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_\top^* & \text{(Lemma \ref{lem:merge_gc_inv})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_\top^*. & \text{(Property \ref{property:gc_conservative})} \label{eq:thm:ins_correct:timestep}
+\end{align}
+If $\tt{A}$ has no primary keys, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align}
+&\tt{A}_{\exists,t,0}\nonumber\\
+\subseteq& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} \label{eq:thm:inst_correct:timestep_0}\\
+\subseteq& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_I^- & \text{(I.H.)} \label{eq:thm:inst_correct:timestep_1}\\
+=& \tt{A}_{I,t,0} \nonumber\\
+\subseteq&~ \tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)} \nonumber\\
+\subseteq&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)} & \text{(I.H.)} \nonumber\\
+=&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,} \nonumber\\
+&~ \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Lemma \ref{lem:merge_gc_inv})} \nonumber\\
+=&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \tt{A}_\exists^* \cup \tt{A}_\top^* \nonumber\\
+&~ \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=&~ \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t} \nonumber
+\end{align}
+If $\tt{A}$ has primary keys, \eqref{eq:thm:inst_correct:timestep_0} and \eqref{eq:thm:inst_correct:timestep_1} are equalities, so $\tt{A}_{\exists,t,0} = \tt{A}_{I,t,0}$.
+Furthermore, for $\tt{A}_!$, we have
+\begin{align*}
+\tt{A}_{!,t,0}
+&= \tt{A}_{!,t-1,\iota} \cup \pi_!\left(\bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)\\
+&= \pi_!\left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right) & \text{(I.H.)} \\
+&= \pi_!(\tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}) & \text{(Lemma \ref{lem:merge_gc_inv})}
+\end{align*}
+where in the final equality we have used the same argument as above for sets without primary keys.
+\end{proof}
+
+\begin{cor}
+\label{cor:instantiated_equivalence_of_output}
+If $\tt{A}$ is an output set, it has $\tt{A}_I = \tt{A}_\exists = \tt{A}$.
+\end{cor}
+
+\begin{cor}
+\label{cor:instantiated_confluence_of_output}
+If $\mathfrak{P}$ is confluent and $\tt{A}$ is an output set, then $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_I$.
+\end{cor}
+
+\begin{cor}
+\label{cor:instantiated_confluence_of_keys}
+If $\mathfrak{P}$ is confluent and $\tt{A}$ has primary keys, then $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_I$ and $\tt{A}_!$.
+\end{cor}
+
+\subsection{Coordination}
+Unlike $\mathfrak{P}_{GC}$, the instantiated GC program $\tt{P}_{iGC}$ is in general \emph{not confluent} even if $\mathfrak{P}$ is.
+This appears to run counter to our goal of reconciling CALM with garbage collection.
+However, we highlight that $\mathfrak{P}_{iGC}$ is `confluent' in $\tt{A}_\exists$, in the sense that if a tuple $x$ is in $\tt{A}_\exists$, then all runs of $\mathfrak{P}_{iGC}$ will agree that $x \in \tt{A}_I$.
+Thus, $\mathfrak{P}$ is `non-confluent' only with respect to tombstone sets $\tt{A}_\top$, i.e., separate runs only disagree on tuples that, by our invariants, do not affect the outcome!
+
+In fact, the `confluence' of \cite{marczak2012confluence} was defined in terms of agreement on output sets.
+Dedalus$^+$ (and monotone Bloom$^L$) are restrictions on the programming language to ensure that \emph{all sets and lattices} are temporally inflationary and confluent.
+This does not exclude the possibility of other programs in non-monotone Bloom$^L$ being confluent in some output sets;
+our program $\mathfrak{P}_{iGC}$ is exactly an example of such a program.
+Instead of restricting the language, we restrict the possible GC functions to ensure that output sets always converge.
+
+The CALM analysis of \cite{ameloot2014weaker} also explicitly defined `coordination-freeness' and `monotonicity of queries' with respect to output relations, and allowed for the possibility of divergent intermediate states.
+(In particular, there are no restrictions placed on the nodes' memory relations.)
+A close examination of the analyses (see our transducer writeup) reveals that `coordination' is required only to determine that one has received the complete input.
+The GC invariant can be interpreted as an assertion that tombstoned tuples are independent of any future input, and thus do not affect the requirement (or lack thereof) of knowledge of input completeness for determining output relations.
+Said differently, coordination (or knowledge of input completeness) is required only to converge on where $\tt{A}_I$ lies in the range of $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$, but not for the confluence of the output relations that we care about.
+
+
+
+
+
+
+
+
+\section{Garbage Collection for Asynchronous Rules}
+Consider an asynchronous merge rule on a sender node $v$
+\begin{align*}
+\overline{\tt{B}} \quad\tt{<}\sim\quad \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align*}
+and the corresponding merge rule on the receiver node $v'$
+\begin{align*}
+\tt{B} \quad\tt{<=}\quad \overline{\tt{B}}.
+\end{align*}
+We would like to garbage collect from $\tt{A}_1, \dots, \tt{A}_n$ and also to reduce the amount of communication needed.
+Unfortunately, the asynchronous merge differs from a merge $\tt{B} ~\tt{<=}~ \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}$ or a deferred merge $\tt{B} ~\tt{<+}~ \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}$ in an important way:
+the sender node has no knowledge of the contents of $\tt{B}$.
+
+To fix this, \cite{conway2014edelweiss} introduced the following additional rules.
+On the receiver side, we acknowledge all received messages with
+\begin{align*}
+\overline{\underline{\tt{B}}} \quad\tt{<}\sim\quad \overline{\tt{B}},
+\end{align*}
+which is stored on the sender side
+\begin{align*}
+\underline{\tt{B}} \quad\tt{<=}\quad \overline{\underline{\tt{B}}}.
+\end{align*}
+
+Thus, $\underline{\tt{B}}$ contains a subset of $\tt{B}$'s contents.
+\begin{lemma}
+\label{lem:async_merge_contains}
+For any $(v,t) <_\tau (v',t')$, $I^{\Pi_\tau}_{v,t}(\underline{\tt{B}}@(v,t)) \subseteq I^{\Pi_\tau}_{v',t'}(\tt{B}@(v',t'))$.
+\end{lemma}
+\begin{proof}(Sketch)
+For any $x \in I^{\Pi_\tau}_{v,t}(\underline{\tt{B}}@(v,t)) = \bigcup_{s=0}^t I^{\Pi_\tau}_{v,s}(\overline{\underline{\tt{B}}}@(v,s))$, it must be the case that $\exists s \leq t$: $x \in I^{\Pi_\tau}_{v,s}(\overline{\underline{\tt{B}}}@(v,s))$, i.e., $x$ was received via $\overline{\underline{\tt{B}}}$ at some earlier time $(v,s)$.
+That in turn implies
+$\exists t''$ such that $(v',t'') <_\tau (v,s)$ and $x \in I^{\Pi_\tau}_{v',t''}(\tt{B}@(v',t''))$, i.e., $x$ was sent from $v'$ at time $(v',t'')$.
+Now $(v',t'') <_\tau (v,s) <_\tau (v,t) <_\tau (v',t')$ and $\tt{B}$ is persistent implies that $x \in I^{\Pi_\tau}_{v',t'}(\tt{B}@(v',t'))$.
+\end{proof}
+
+\subsection{Logical Garbage Collection}
+Armed with (partial) knowledge of $\tt{B}$, we can now introduce logical garbage collection for the asynchronous merge rule.
+On the sender node $v$ in $\mathfrak{P}_{GC}$, we have rules
+\begin{align}
+(\overline{\tt{B}},\emptyset) &\quad\tt{<}\sim\quad (\tt{f}\tt{(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)\label{eq:async_logical_send}\\
+(\underline{\tt{B}}_\exists, \underline{\tt{B}}_\top) &\quad\tt{<=}\quad (\overline{\underline{\tt{B}}}, \emptyset),\nonumber
+\end{align}
+and on the receiver node $v'$,
+\begin{align*}
+(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<=}\quad (\overline{\tt{B}}, \emptyset)\\
+(\overline{\underline{\tt{B}}}, \emptyset) &\quad\tt{<}\sim\quad (\overline{\tt{B}}, \emptyset).
+\end{align*}
+Note that we can replace \eqref{eq:async_logical_send} with $(\overline{\tt{B}},\emptyset) ~\tt{<}\sim~ (\tt{f}\tt{(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}  - (\underline{\tt{B}}_\exists \cup \underline{\tt{B}}_\top), \emptyset)$ without affecting the overall program logic.
+We term this trick ARM, avoidance of redundant messages.
+
+In addition, we add the garbage collection rule
+\begin{align}
+\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS} \rangle
+\quad\tt{<+}\quad
+\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \underline{\tt{B}}_{TS})
+\end{align}
+which depends on the $v$-accessible $\underline{\tt{B}}_{TS}$ instead of $\tt{B}_{TS}$.
+
+Analogously to Merge GC Invariant \ref{inv:merge_gc}, we will require that the Asynchronous Merge GC Invariant \ref{inv:async_merge_gc} is maintained by all rules, including the above GC rule.
+
+\begin{invariant}[Asynchronous Merge GC Invariant]\label{inv:async_merge_gc}
+Consider any asynchronous merge rule 
+\[R: \tt{B} ~\tt{<}\sim~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}\]
+where
+$\tt{A}_1,\dots,\tt{A}_n$ are tables without keys,
+$\tt{U}_1,\dots,\tt{U}_m$ are tables with keys,
+and RHS is not a channel.
+We require that, 
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,
+\quad
+\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle \geq \langle \tt{U}_{1,\exists}, \dots, \tt{U}_{m,\exists} \rangle$
+such that $\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top} = \dots = \widehat{\tt{U}}_1 \cap \tt{U}_{m,\top}$:
+\begin{align}
+\tt{f(}\widehat{\tt{A}}_1,\dots,\widehat{\tt{A}}_n, \widehat{\tt{U}}_{1,\exists},\dots,\widehat{\tt{U}}_{n,\exists}\tt{)}
+\cup \underline{\tt{B}}_\exists\cup \underline{\tt{B}}_\top
+~=~
+\tt{f(}
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top},\dots,\widehat{\tt{A}}_n \cup \tt{A}_{n,\top}, \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top},\dots,\widehat{\tt{U}}_n \cup \tt{U}_{n,\top}\tt{)} 
+\cup \underline{\tt{B}}_\exists \cup \underline{\tt{B}}_\top.
+\label{eq:inv_async_merge_gc}
+\end{align}
+\end{invariant}
+If \eqref{eq:inv_async_merge_gc} holds for $\underline{\tt{B}}_{TS}@(v,t)$, then by Lemma \ref{lem:async_merge_contains}, it also holds for $\tt{B}_{TS}@(v',t')$ if $(v,t) <_\tau (v',t')$.
+
+Correspondingly, we say a GC rule is \emph{safe for} an asynchronous rule $R$ if it maintains the Asynchronous Merge Invariant \ref{inv:async_merge_gc} with respect to $R$.
+
+\begin{property}[Asynchronous Merge GC Safety]
+A garbage collection rule $\tt{GC}$ is safe for an asynchronous merge rule $R: \tt{B} ~\tt{<}\sim~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ if it respects output, and maintains the Asynchronous Merge GC Invariant \ref{inv:async_merge_gc} for $R$.
+That is, if $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, \tt{U}_{m,TS} \rangle$ and $\underline{\tt{B}}_{TS}$ satisfies Asynchronous Merge GC Invariant \ref{inv:async_merge_gc}, then
+$\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*,$ $\tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle$ $=$ $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS}; \underline{\tt{B}}_{TS})$ and $\underline{\tt{B}}_{TS}$ satisfies Asynchronous Merge GC Invariant \ref{inv:async_merge_gc}.
+\end{property}
+
+We will require that the garbage collection rule $\tt{GC}$ that is added to $\mathfrak{P}_{GC}$ for asynchronous merge rule $R$ be safe for $R$, monotone, and conservative.
+
+It is not difficult to see that $\mathfrak{P}_{GC}$ with garbage collection for asynchronous merges maintains both Merge GC Invariant \ref{inv:merge_gc} and Asynchronous Merge GC Invariant \ref{inv:async_merge_gc}.
+We omit the proof as it largely follows the structure of the proof of Lemma \ref{lem:merge_gc_inv}.
+
+\begin{lemma}
+\label{lem:async_merge_gc_inv}
+The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc} and the Asynchronous Merge GC Invariant \ref{inv:async_merge_gc}.
+\end{lemma}
+
+Furthermore, Theorem \ref{thm:equivalence_of_sets}, Corollary \ref{cor:equivalence_of_output}, Theorem \ref{thm:coord-free}, and Corollary \ref{cor:confluence_of_output} hold with little modification of the proofs.
+
+
+\subsection{Instantiated Garbage Collection}
+On the sender node $v$ in $\mathfrak{P}_{iGC}$, we have rules
+\begin{align*}
+\overline{\tt{B}}_I &\quad\tt{<}\sim\quad \tt{f}\tt{(}\tt{A}_{1,I}, \dots, \tt{A}_{n,I}\tt{)} - \underline{\tt{B}}_I\\
+\underline{\tt{B}}_I &\quad\tt{<=}\quad \overline{\underline{\tt{B}}}_I\\
+\langle \tt{A}_{1,E}, \dots, \tt{A}_{n,E} \rangle
+&\quad\tt{<-}\quad
+\tt{GCI}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \underline{\tt{B}}_{E})
+\end{align*}
+and on the receiver node $v'$,
+\begin{align*}
+\tt{B}_I &\quad\tt{<=}\quad \overline{\tt{B}}_I & \text{(or $(\tt{B}_I, \tt{B}_!) \quad\tt{<=}\quad (\overline{\tt{B}}_I, \pi_!(\overline{\tt{B}}_I$))}\\
+\overline{\underline{\tt{B}}}_I &\quad\tt{<}\sim\quad \overline{\tt{B}}_I.
+\end{align*}
+
+As before, we require that $\tt{GCI}$ is conservative and consistent with some $\tt{GC}$ which is itself safe for $\tt{R}$, monotone, and conservative.
+
+The proof of Theorem \ref{thm:instantiated_correctness} is largely unchanged, except with some careful handling of the differences between $\overline{\tt{B}_I}$ and $\underline{\tt{B}}$ resulting from ARM.
+The implications of Corollaries \ref{cor:instantiated_equivalence_of_output}, \ref{cor:instantiated_confluence_of_output}, \ref{cor:instantiated_confluence_of_keys} follow from Theorem \ref{thm:instantiated_correctness} without change.
+
+
+
+
+
+
+
+
+
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{sample}
+
 \end{document}
