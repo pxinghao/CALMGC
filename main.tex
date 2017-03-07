@@ -396,7 +396,12 @@ That is, letting $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{
 \label{property:gc_safety}
 Let $R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ be a merge or deferred merge rule.
 A garbage collection rule $\tt{GC}$ is safe for $R$ if it respects output relations, and maintains the Merge GC Invariant \ref{inv:merge_gc} for $R$.
-That is, if $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, \tt{U}_{m,TS} \rangle$ and $\tt{B}_{TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc} for $R$, then $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*, \tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$ and $\tt{B}_{TS}$ also satisfies the Merge GC Invariant \ref{inv:merge_gc}.
+That is, if
+\begin{enumerate}
+\item $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, \tt{U}_{m,TS} \rangle$ and $\tt{B}_{TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc} for $R$, and
+\item $\tt{B}_\exists \cup \tt{B}_\top \supseteq \tt{f}\tt{(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}, \tt{U}_{1,\exists} \cup \tt{U}_{1,\top},\dots,\tt{U}_{n,\exists} \cup \tt{U}_{n,\top}\tt{)}$,
+\end{enumerate}
+then $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*, \tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$ and $\tt{B}_{TS}$ also satisfies the Merge GC Invariant \ref{inv:merge_gc}.
 \end{property}
 
 \begin{property}[GC Rule Monotonicity]
@@ -507,6 +512,17 @@ If $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfy the invariant, then
 \end{align*}
 so $\tt{GCSelect}$ is safe for $R$.
 
+\begin{example}[Linear GC]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{f}(\tt{A})$, where $\tt{f}$ is a linear function, i.e., $\tt{f}(\tt{A}) = \bigcup_{a\in \tt{A}} \tt{f}(\{a\})$.
+Then $\tt{GCAll}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = (\emptyset, \tt{A}_\exists \cup \tt{A}_\top)$ is safe for $R$.
+\end{example}
+Since $\tt{f}$ is linear, Invariant \ref{inv:merge_gc} reduces to $\tt{f}\tt{(}\tt{A}_\top\tt{}) \subseteq \tt{B}_\exists \cup \tt{B}_\top$, but this is true under the condition $\tt{B}_\exists \cup \tt{B}_\top \supseteq \tt{f}\tt{(}\tt{A}_{\exists} \cup \tt{A}_{\top}\tt{)} = \tt{f}\tt{(}\tt{A}_\exists\tt{}) \cup \tt{f}\tt{(}\tt{A}_\top\tt{})$.
+Thus, Invariant \ref{inv:merge_gc} is trivially true for linear $\tt{f}$.
+Intuitively, a tuple $a \in \tt{A}_\exists$ is independent of all other tuples when $\tt{f}$ is linear, and hence, its complete effects will have been realized in $\tt{B}$ (either through a merge or deferred merge) by the point at which we perform garbage collection.
+Therefore, we can always reclaim the entire set without impacting our results.
+
+In particular, observe that the copy, select, and project rules of previous examples are all linear, and thus can be fully reclaimed at the end of each timestep.
+
 \begin{example}[Join GC]
 \label{ex:join_gc_no_punctuations}
 Consider the join $R: \tt{B} ~\tt{<op>}~ \tt{A} \bowtie_{\tt{A}.k_a = \tt{C}.k_c} \tt{C}$, where $\tt{<op>}$ is either a merge or deferred merge.
@@ -590,10 +606,10 @@ Due to Lemma \ref{lem:unchangedexists}, we can write $\tt{A}_{\top,t}$ in place 
 
 \begin{lemma}
 \label{lem:merge_gc_inv}
-The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc}.
+The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc} for any rule $R$.
 \end{lemma}
 \begin{proof}
-We prove the lemma by an induction on $t$ and $i$.
+We prove the lemma for any given $R$ by an induction on $t$ and $i$.
 That is, we show for every $t$ and $i$,
 $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle$,
 $\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle$,
@@ -703,8 +719,14 @@ which implies $\tt{A}_{j,\exists,t,0} \supseteq \tt{A}_{j,\exists}^*$ and $\tt{A
 The same holds for $\tt{U}_j$ for $j=1,\dots,m$, which further implies that $\widehat{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \emptyset \implies \widehat{\tt{U}}_j \cap \tt{U}_{j,\top,t} = \emptyset$.
 
 Also, by the monotonicity of $\tt{<+}$, we see that $\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}$.
-Let $\widetilde{\tt{B}} = (\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}) - (\tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1})$, and observe that $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n \rangle \geq \langle \tt{A}_{1,\exists,t,0}, \dots, \tt{A}_{n,\exists,t,0} \rangle \geq \langle \tt{A}_{1,\exists}^*, \dots, \tt{A}_{n,\exists}^* \rangle$,
-$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n \rangle \geq \langle \tt{U}_{1,\exists,t,0}, \dots, \tt{U}_{n,\exists,t,0} \rangle \geq \langle \tt{U}_{1,\exists}^*, \dots, \tt{U}_{n,\exists}^* \rangle$,
+Let $\widetilde{\tt{B}} = (\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}) - (\tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1})$.
+Note that
+$\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{f}\tt{(}\tt{A}_{\exists,1,t-1,\iota} \cup \tt{A}_{1,\top,t-1},\dots,\tt{A}_{n,\exists,t-1,\iota} \cup \tt{A}_{n,\top,t-1}, \tt{U}_{1,\exists,t-1,\iota} \cup \tt{U}_{1,\top,t-1},\dots,\tt{U}_{n,\exists,t-1,\iota} \cup \tt{U}_{n,\top,t-1}\tt{)}$ ---
+if $R$ is a merge rule, it is true because $t,\iota$ is a fixed point;
+if $R$ is a deferred merge rule, then the inclusion holds by definition of $\tt{B}_{TS,t,0}$.
+
+Observe that $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n \rangle$ $\geq$ $\langle \tt{A}_{1,\exists,t,0}, \dots, \tt{A}_{n,\exists,t,0} \rangle$ $\geq$ $\langle \tt{A}_{1,\exists}^*, \dots, \tt{A}_{n,\exists}^* \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n \rangle$ $\geq$ $\langle \tt{U}_{1,\exists,t,0}, \dots, \tt{U}_{n,\exists,t,0} \rangle$ $\geq$ $\langle \tt{U}_{1,\exists}^*, \dots, \tt{U}_{n,\exists}^* \rangle$,
 such that $\emptyset = \widetilde{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \widetilde{\tt{U}}_{j,\top,t}$ for all $j = 1,\dots,m$,
 \begin{align*}
 &
@@ -1296,6 +1318,14 @@ That is, if $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, 
 $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*,$ $\tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle$ $=$ $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS}; \underline{\tt{B}}_{TS})$ and $\underline{\tt{B}}_{TS}$ satisfies Asynchronous Merge GC Invariant \ref{inv:async_merge_gc}.
 \end{property}
 
+Unlike with the Merge GC Safety Property \ref{property:gc_safety}, we require that $\tt{GC}$ maintains Invariant \ref{inv:async_merge_gc} without the condition that 
+$\tt{B} \supseteq \tt{f}\tt{(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}$,
+since there is no guarantee that this condition is true at the time that the GC rule is executed, nor that it will ever be true if an unreliable messaging protocol is used.
+As a simple example, consider the asynchronous copy rule $\tt{B} \tt{<}\sim \tt{A}$.
+If we apply $\tt{GCAll}$ for the linear copy function, we could tombstone all tuples in $\tt{A}$ and never send them again.
+However, the message could be dropped and thus never be seen by $\tt{B}$.
+
+
 We will require that the garbage collection rule $\tt{GC}$ that is added to $\mathfrak{P}_{GC}$ for asynchronous merge rule $R$ be safe for $R$, monotone, and conservative.
 
 It is not difficult to see that $\mathfrak{P}_{GC}$ with garbage collection for asynchronous merges maintains both Merge GC Invariant \ref{inv:merge_gc} and Asynchronous Merge GC Invariant \ref{inv:async_merge_gc}.
@@ -1326,13 +1356,19 @@ and on the receiver node $v'$,
 
 As before, we require that $\tt{GCI}$ is conservative and consistent with some $\tt{GC}$ which is itself safe for $\tt{R}$, monotone, and conservative.
 
-The proof of Theorem \ref{thm:instantiated_correctness} is largely unchanged, except with some careful handling of the differences between $\overline{\tt{B}_I}$ and $\underline{\tt{B}}$ resulting from ARM.
+The proof of Theorem \ref{thm:instantiated_correctness} is largely unchanged, except with some careful handling of the differences between $\overline{\tt{B}}_I$ and $\underline{\tt{B}}$ resulting from the instantiated garbage collection and ARM.
 The implications of Corollaries \ref{cor:instantiated_equivalence_of_output}, \ref{cor:instantiated_confluence_of_output}, \ref{cor:instantiated_confluence_of_keys} follow from Theorem \ref{thm:instantiated_correctness} without change.
 
 
 
+\subsection{Garbage Collecting $\underline{\tt{B}}$}
+We assume WLOG in this subsection that the RHS of an asynchronous rule is a table $\tt{A}$ with primary keys.
+If not, we can replace $\overline{\tt{B}} ~\tt{<}\sim~ \tt{f}\tt{(}\tt{A}_1, \dots, \tt{A}_n\tt{)}$ with rules $\overline{\tt{B}} ~\tt{<}\sim~ \tt{A}$ and $\tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{A}_1, \dots, \tt{A}_n\tt{)}$, where we attach unique message IDs to tuples merged into $\tt{A}$.
 
-
+Then, we can apply DR- to the RHS $\tt{A}_I - \underline{\tt{B}}_I$ to garbage collect from both $\tt{A}_E$ and $\underline{\tt{B}}_E$, by replacing the garbage collection rule with
+\[
+\langle \tt{A}_E, \underline{\tt{B}}_E \rangle \quad\tt{<-}\quad \tt{iGCDR-}(\tt{A}_E, \underline{\tt{B}}_E; \underline{\tt{B}}_E).
+\]
 
 
 
