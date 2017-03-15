@@ -73,17 +73,61 @@ Unfortunately, the opportunities for storage reclamation identified in \cite{con
 This runs counter to the original motivation for immutability, namely, to write monotone and therefore coordination-free programs.
 
 In this work, we harmonize the notion of CALM consistency with ELE.
-The intuitions behind our approach are (i) data that does not affect future computation can be safely reclaimed, and (ii) garbage collection should only requires local coordination\footnote{
-	Here we use ``coordination'' in the sense of communication for discovering input completeness.
-    We will define garbage collection rules that do not require knowledge of input completeness from other nodes.
-} and does not affect the overall monotonicity and coordination-freeness of the program.
+The intuitions behind our approach are (i) data that does not affect future computation can be safely reclaimed, and (ii) garbage collection does not affect the monotonicity of the output and coordination-freeness of the program.
 We define properties of valid GC rules according to these intuitions, and provide an analysis of garbage collection.
 We prove that our automated garbage collection is monotone (output always increases) and coordination-free (no additional inter-node points of order) whenever the original program is monotone.
 \end{abstract}
 
+
+
 \section{Introduction}
 
+\subsection{Approach}
+Our approach in this paper proceeds in two phases.
+In the first, we are given an Edelweiss program $\mathfrak{P}$, and produce a program rewrite $\mathfrak{P}_{GC}$.
+Key to the rewrite are `tombstone sets', which are sets in which some tuples are marked as `tombstoned'.
+\emph{Logical garbage collection} rules are added to $\mathfrak{P}_{GC}$ to tombstone tuples that could potentially be reclaimed.
+Under some intuitive and natural constraints on the logical garbage collection rules, we show that the resultant program $\mathfrak{P}_{GC}$ is correct, in the sense that the output of $\mathfrak{P}$ is recoverable from $\mathfrak{P}_{GC}$.
+We also show that $\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$;
+in particular, if $\mathfrak{P}$ is monotone and coordination-free, then $\mathfrak{P}_{GC}$ is also monotone and coordination-free.
+
+Unfortunately, $\mathfrak{P}_{GC}$ does not provide any actual storage reclamation.
+To do this, we perform a second rewrite of $\mathfrak{P}_{GC}$ to an \emph{instantiated GC program} $\mathfrak{P}_{GC}$ where deletions are instantiated.
+Unlike $\mathfrak{P}_{GC}$ which operates on tombstone sets, $\mathfrak{P}_{iGC}$ operates on either ordinary sets or sets augmented with primary keys --- we elaborate on this in the following Section \ref{sec:intro:approach:augment}.
+Instantiated garbage collection rules in $\mathfrak{P}_{iGC}$ are consistent with the corresponding garbage collection rules of $\mathfrak{P}_{GC}$, that is, we only reclaim in $\mathfrak{P}_{iGC}$ tuples that are tombstoned in $\mathfrak{P}_{GC}$.
+This consistency, together with the correctness of the logical rewrite $\mathfrak{P}_{GC}$, implies that $\mathfrak{P}_{iGC}$ also produces the correct output without the need for extra coordination.
+
+\subsubsection{Augmenting with primary keys}
+\label{sec:intro:approach:augment}
+If a set $\tt{A}$ in $\mathfrak{P}$ has primary keys $\tt{A}_!$, we may choose to keep the primary keys in $\mathfrak{P}_{iGC}$ with a small storage overhead even as we keep a subset $\tt{A}_I \subseteq \tt{A}$.
+In that case, we call the pair $\tt{A}_E = (\tt{A}_I, \tt{A}_!)$ a \emph{key-augmented set};
+conversely, if primary keys are not available or if we choose not to keep them, we will call $\tt{A}_I$ a \emph{non-augmented set}.
+
+The choice of representation to use is determined by the instantiated garbage collection rule for $\tt{A}$ in $\mathfrak{P}_{iGC}$.
+For some instantiated garbage collection rules, the primary keys can provide additional information about tuples that have been reclaimed, and allow us to garbage collect more efficiently;
+in such cases, we will use the key-augmented representation.
+The non-augmented representation is used if the primary keys are not available, or not needed by the instantiated garbage collection rule.
+
+Moreover, in a slight abuse of definitions, whenever a set $\tt{A}$ has a key-augmented representation $\tt{A}_E$ in $\mathfrak{P}_{iGC}$, we will also call $\tt{A}$ in $\mathfrak{P}$ and the corresponding tombstone set $\tt{A}_{TS}$ in $\mathfrak{P}_{GC}$ as key-augmented sets.
+Similarly, if we use a non-augmented representation $\tt{A}_I$ in $\mathfrak{P}_{iGC}$, we will also call $\tt{A}$ and $\tt{A}_{TS}$ as non-augmented sets.
+Note that there are no differences between the representations of non-augmented and key-augmented sets in $\mathfrak{P}$ and $\mathfrak{P}_{GC}$;
+the naming convention is used only to highlight the representational differences in $\mathfrak{P}_{iGC}$.
+
+
+
+\subsection{Organization}
+The remainder of this paper is organized as follows.
+In Section \ref{sec:prelims}, we present some preliminaries and notations that will be used in later sections.
+Section \ref{sec:logical} presents and discusses properties of the logical rewrite program $\mathfrak{P}_{GC}$;
+the instantiated rewrite $\mathfrak{P}_{iGC}$ is presented in Section \ref{sec:instantiated}.
+For clarity of exposition, we leave the garbage collection for asynchronous rules (sending messages between nodes) to Section \ref{sec:async_gc}.
+We conclude in Section \ref{sec:conclude}.
+
+
+
+
 \section{Preliminaries}
+\label{sec:prelims}
 \subsection{CALM}
 
 \subsection{Dedalus, Bloom, Edelweiss}
@@ -148,7 +192,8 @@ This will be particular handy when we garbage collect from across multiple sets 
 
 
 \subsubsection{Tombstone lattices}
-Our main algebraic tool for the sequel is the \emph{tombstone lattice}:
+\textbf{Lattices for logical rewrite $\mathfrak{P}_{GC}$:}
+Our main algebraic tool for the logical rewrite is the \emph{tombstone lattice}:
 given a table $\tt{A}$ in our program, we lift it to a 3-phase lattice $\tt{A}_{TS} = (\tt{A}_\exists, \tt{A}_\top)$ endowed with an additional `tombstone' state $\top$.
 Intuitively, tuples marked as tombstoned are those that can be safely reclaimed without affecting computation or confluence.
 We will maintain $\tt{A}_\exists \cap \tt{A}_\top = \emptyset$.
@@ -164,27 +209,36 @@ The keys $\tt{A}_!$ can be kept as part of the lattice, which is now augmented t
 In an abuse of notation, we will sometimes use $\tt{A}_!$ to refer to the tuples $(\tt{A}_\exists \cup \tt{A}_\top)$ instead of keys $\pi_!(\tt{A}_\exists \cup \tt{A}_\top)$ of the table.
 The join on this lattice is defined by
 \begin{align*}
-(\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) \cup (\tt{B}_\exists, \tt{B}_\top, \tt{B}_!) = ((\tt{A}_\exists \cup \tt{B}_\exists) - (\tt{A}_! \cup \tt{B}_!), \tt{A}_\top \cup \tt{B}_\top, \tt{A}_! \cup \tt{B}_!).
+(\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) \cup (\tt{B}_\exists, \tt{B}_\top, \tt{B}_!) \quad=\quad ((\tt{A}_\exists \cup \tt{B}_\exists) - (\tt{A}_! \cup \tt{B}_!), \tt{A}_\top \cup \tt{B}_\top, \tt{A}_! \cup \tt{B}_!).
 \end{align*}
 Note that $\tt{A}_!$ is a redundant representation if $\tt{A}_\exists$ and $\tt{A}_\top$ are provided.
 Hence, in the logical garbage collection program $\mathfrak{P}_{GC}$ defined in Section \ref{sec:logical}, we will omit the use of $\tt{A}_!$.
 
-However, in our instantiated program $\mathfrak{P}_{iGC}$ defined in Section \ref{sec:instantiated}, we will more commonly use a compressed representation where we drop $\tt{A}_\top$ and instead use only $\tt{A}_E = (\tt{A}_I, \tt{A}_!)$, where we use the subscript $I$ to suggestively denote instantiated tuples, a superset of $\tt{A}_\exists$ but subset of $\tt{A}_\exists \cup \tt{A}_\top$.
+\textbf{Lattices for logical rewrite $\mathfrak{P}_{GC}$:}
+The above representation requires storage for tombstoned tuples in $\tt{A}_\top$, and does not enable any real storage reclamation.
+In our instantiated program $\mathfrak{P}_{iGC}$ defined in Section \ref{sec:instantiated}, we will use compressed representations where we drop some or all of $\tt{A}_\top$.
+We keep instantiated tuples $\tt{A}_I$ instead of $(\tt{A}_\exists, \tt{A}_\top)$; in Section \ref{sec:instantiated} we will show $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$.
+
+If primary keys are not available, or if we choose not to instantiate and keep them, we will call $\tt{A}_I$ the \emph{non-augmented} representation.
+Otherwise, if primary keys are available and we choose to keep them, we will call $\tt{A}_E = (\tt{A}_I, \tt{A}_!)$ the \emph{key-augmented} representation.
 The obvious join for this lattice is
 \begin{align*}
-\tt{A}_E \cup \tt{B}_E = (\tt{A}_I, \tt{A}_!) \cup (\tt{B}_I, \tt{B}_!) = ((\tt{A}_I \cup \tt{B}_I) - (\tt{A}_! \cup \tt{B}_!), \tt{A}_! \cup \tt{B}_!).
+\tt{A}_E \cup \tt{B}_E \quad=\quad (\tt{A}_I, \tt{A}_!) \cup (\tt{B}_I, \tt{B}_!) \quad=\quad ((\tt{A}_I \cup \tt{B}_I) - (\tt{A}_! \cup \tt{B}_!), \tt{A}_! \cup \tt{B}_!).
 \end{align*}
-We define the difference operators\footnote{
-In the sequel, we will only use differences on $\tt{A}$ and $\tt{A}_E$} as
+We also define the difference operator
+% \footnote{In the sequel, we will only use differences on $\tt{A}$ and $\tt{A}_E$}
+as
 \begin{align*}
-\tt{A}_{TS} - \tt{B}_{TS} &\quad=\quad (\tt{A}_\exists - (\tt{B}_\exists \cup \tt{B}_\top), \tt{A}_\top \cup \tt{B}_\exists \cup \tt{B}_\top) &&=\quad \tt{A}_{TS} \cup (\emptyset, \tt{B}_\exists \cup \tt{B}_\top),\\
-(\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) - (\tt{B}_\exists, \tt{B}_\top, \tt{B}_!) &\quad=\quad (\tt{A}_\exists - \tt{B}_!, \tt{A}_\top \cup \tt{B}_\exists \cup \tt{B}_\top, \tt{A}_! \cup \tt{B}_!) &&=\quad (\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) \cup (\emptyset, \tt{B}_\exists \cup \tt{B}_\top, \tt{B}_!),\\
-\tt{A}_E - \tt{B}_E &\quad=\quad (\tt{A}_\exists - \tt{B}_!, \tt{A}_! \cup \tt{B}_!) &&=\quad \tt{A}_E \cup (\emptyset, \tt{B}_!).
+% \tt{A}_{TS} - \tt{B}_{TS} &\quad=\quad (\tt{A}_\exists - (\tt{B}_\exists \cup \tt{B}_\top), \tt{A}_\top \cup \tt{B}_\exists \cup \tt{B}_\top) &&\quad=\quad \tt{A}_{TS} \cup (\emptyset, \tt{B}_\exists \cup \tt{B}_\top),\\
+% (\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) - (\tt{B}_\exists, \tt{B}_\top, \tt{B}_!) &\quad=\quad (\tt{A}_\exists - \tt{B}_!, \tt{A}_\top \cup \tt{B}_\exists \cup \tt{B}_\top, \tt{A}_! \cup \tt{B}_!) &&\quad=\quad (\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) \cup (\emptyset, \tt{B}_\exists \cup \tt{B}_\top, \tt{B}_!),\\
+\tt{A}_E - \tt{B}_E &\quad=\quad (\tt{A}_\exists - \tt{B}_!, \tt{A}_! \cup \tt{B}_!) &&\quad=\quad \tt{A}_E \cup (\emptyset, \tt{B}_!).
 \end{align*}
-In all cases, the difference promotes all tuples in the second operand to the tombstone state.
+% In all cases, the difference promotes all tuples in the second operand to the tombstone state.
+That is, the difference deletes all tuples in the second operand $\tt{B}_E$ from the first operand $\tt{A}_E$.
 
 
 \subsection{Bloom$^L$ Execution}
+\label{sec:prelims:exec}
 (Using formalism and definitions of Bloom$^L$ writeup..)
 
 A Bloom$^L$ \emph{program} is a set $\{\mathfrak{P}_v ~:~ v \in V\}$ for some finite $V$, where each $\mathfrak{P}_v$ is itself a finite collection of rules.
@@ -416,13 +470,54 @@ While it is possible to have multiple GC rules performing reclamation, we would 
 \subsection{Properties of GC rules}
 For our rewrite to be sensible, we require that the GC rules have certain properties.
 In particular, the GC rules must be safe -- they should only tombstone tuples that have no effect on future derivations.
+We provide some intuition for this safety in the following examples.
+
+\begin{example}[Safety for Projection]
+Suppose we have the projection rule $\tt{X} ~\tt{<=}~ \pi_S(\tt{Y})$ in $\mathfrak{P}$, and correspondingly $\tt{X}_{TS} ~\tt{<=}~ (\pi_S(\tt{Y}_\exists \cup \tt{Y}_\top), \emptyset)$ in $\mathfrak{P}_{GC}$.
+% , and $\tt{X}_I ~\tt{<=}~ \pi_S(\tt{Y}_I)$ in $\mathfrak{P}_{iGC}$.
+% Our goal is to always maintain the relationships
+% $\tt{X}_\exists \subseteq \tt{X}_I \subseteq \tt{X}_\exists \cup \tt{X}_\top = \tt{X}$ and
+% $\tt{Y}_\exists \subseteq \tt{Y}_I \subseteq \tt{Y}_\exists \cup \tt{Y}_\top = \tt{Y}$.
+Since we wish to eventually reclaim tombstoned tuples, these tuples in $\tt{Y}_\top$ should have no effect on the execution of the projection rule.
+As explained in Section \ref{sec:prelims:exec}, executing the rule is equivalent to making the assignment $\tt{X}_{\exists,t,i+1} \cup \tt{X}_{\top,t,i+1} := \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\tt{Y}_{\exists,t,i} \cup \tt{Y}_{\top,t,i})$.
+For $\tt{Y}_\top$ to not affect this execution, it must be the case that $\tt{Y}_{\top,t,i} \subseteq \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i}$, so that $\tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\tt{Y}_{\exists,t,i} \cup \tt{Y}_{\top,t,i}) = \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\tt{Y}_{\exists,t,i})$.
+Thus, as long as $\tt{Y}_\top \subseteq \tt{X}_\exists \cup \tt{X}_\top$, it suffices to keep $\tt{Y}_\exists$ and we may safely discard $\tt{Y}_\top$.
+
+As the execution of the program continues, $\tt{Y}_\exists$ may grow as tuples are merged into it, forming a larger $\widehat{\tt{Y}} \supseteq \tt{Y}_\exists$.
+Despite this growth, the execution is still unaffected, i.e., $\tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\widehat{\tt{Y}} \cup \tt{Y}_{\top,t,i}) = \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\widehat{\tt{Y}})$, since we have ensured that $\tt{Y}_\top \subseteq \tt{X}_\exists \cup \tt{X}_\top$.
+\end{example}
+
+\begin{example}[Safety for Set Difference]
+Suppose we have the rule $\tt{Z} ~\tt{<=}~ \tt{X} - \tt{Y}$ in $\mathfrak{P}$, and correspondingly $\tt{Z}_{TS} ~\tt{<=}~ ((\tt{X}_\exists \cup \tt{X}_\top) - (\tt{Y}_\exists \cup \tt{Y}_\top), \emptyset)$ in $\mathfrak{P}_{GC}$.
+% , and $\tt{Z}_I ~\tt{<=}~ \tt{X}_I - \tt{Y}_I$ in $\mathfrak{P}_{iGC}$.
+Suppose also that $\tt{X}_E$ has a key-augmented representation in $\mathfrak{P}_{iGC}$ while $\tt{Y}_I$ has a non-augmented representation.
+As in the previous example, we desire that the execution of the rule is unaffected by deletion of tombstones.
+In particular, it suffices to have
+$(\tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i}) - (\tt{Y}_{\exists,t,i} \cup \tt{Y}_{\top,t,i}) = \tt{X}_{\exists,t,i} - \tt{Y}_{\exists,t,i}$.
+We observe that if a tuple $x$ appears in both $\tt{X}$ and $\tt{Y}$, we can safely tombstone $x$ from $\tt{X}$ without affecting the set difference.
+Once we have $x \in \tt{X}_\top$, it is not in $\tt{X}_\exists$, so we can also safely tombstone $x$ from $\tt{Y}$.
+Hence, it suffices to ensure $\tt{Y}_\top \subseteq \tt{X}_\top \subseteq \tt{Y}_\top \cup \tt{Y}_\exists$.
+We may then discard $\tt{X}_\top$ and $\tt{Y}_\top$ and keep only $\tt{X}_\exists$, $\tt{Y}_\exists$.
+We also keep $\tt{X}_!$ in the key-augmented representation; its use will be demonstrated in the following paragraph.
+
+As the execution of the program continues, both $\tt{X}_\exists$ and $\tt{Y}_\exists$ may grow as tuples are merged into them, former larger $\widehat{\tt{X}} \supseteq \tt{X}_\exists$ and $\widehat{\tt{Y}} \supseteq \tt{Y}_\exists$.
+Since we use the key-augmented representation for $\tt{X}$, tuples that we add to $\tt{X}_\exists$ must be previously unseen tuples not in $\tt{X}_!$, which implies $\widehat{\tt{X}} \cap \tt{X}_\top = \emptyset$.
+If we ensure that $\tt{Y}_\top \subseteq \tt{X}_\top \subseteq \tt{Y}_\top \cup \tt{Y}_\exists$, we can observe that
+$
+(\widehat{\tt{X}} \cup \tt{X}_\top) - (\widehat{\tt{Y}} \cup \tt{Y}_\top)
+= \widehat{\tt{X}} - (\widehat{\tt{Y}} \cup \tt{Y}_\top)
+= \widehat{\tt{X}} - \widehat{\tt{Y}}
+$,
+where the second equality holds because $\tt{Y}_\top \cap \widehat{\tt{X}} \subseteq \tt{X}_\top \cap \widehat{\tt{X}} = \emptyset$.
+Thus, the execution of the set difference rule is unaffected by the deletion of tombstones.
+\end{example}
 
 \begin{invariant}[Merge GC Invariant]\label{inv:merge_gc}
 Consider any merge or deferred merge rule 
 \[R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}\]
 where $\tt{<op>}$ is either $\tt{<=}$ or $\tt{<+}$,
-$\tt{A}_1,\dots,\tt{A}_n$ are tables with or without primary keys,
-$\tt{U}_1,\dots,\tt{U}_m$ are tables with primary keys,
+$\tt{A}_1,\dots,\tt{A}_n$ are non-augmented sets,
+$\tt{U}_1,\dots,\tt{U}_m$ are key-augmented sets,
 and RHS is not a channel.
 We require that, 
 $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,$
@@ -1414,6 +1509,7 @@ Said differently, coordination (or knowledge of input completeness) is required 
 
 
 \section{Garbage Collection for Asynchronous Rules}
+\label{sec:async_gc}
 Consider an asynchronous merge rule on a sender node $v$
 \begin{align*}
 \overline{\tt{B}} \quad\tt{<}\sim\quad \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
@@ -1558,6 +1654,12 @@ Then, we can apply DR- to the RHS $\tt{A}_I - \underline{\tt{B}}_I$ to garbage c
 \]
 
 
+
+
+
+
+\section{Conclusion}
+\label{sec:conclude}
 
 
 
