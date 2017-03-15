@@ -1,0 +1,225 @@
+%!TEX root = bloom_logical.tex
+
+\section{Rewrites}
+\label{sec:rewrites}
+
+\setcounter{subsection}{-1}
+\subsection{Copy rewrite}
+We make the following simplifying assumption about $\mathfrak{P}$.
+\begin{assumption}
+\label{ass:copy}
+Let $\tt{A}$ be a table or channel in $\mathfrak{P}$ appearing in multiple rules
+\begin{align*}
+R_1: && \tt{B}_1 &\quad\tt{<op>}\quad \tt{f}_1\tt{(}\tt{A},\tt{C}_{11},\dots,\tt{C}_{1k_1}\tt{)}\\
+&&&\quad\vdots\\
+R_n: && \tt{B}_n &\quad\tt{<op>}\quad \tt{f}_n\tt{(}\tt{A},\tt{C}_{n1},\dots,\tt{C}_{nk_n}\tt{)}
+\end{align*}
+with $n \geq 2$.
+Then it must be the case that $R_i: \tt{B}_i ~\tt{<=}~ \tt{A}$ is an identity copy.
+\end{assumption}
+Assumption \ref{ass:copy} states that any table $\tt{A}$ can either appear as input on the RHS of a single rule, or otherwise each of the rules it appears in must be a copy rule.
+
+The assumption can be made without loss of generality, as any $\mathfrak{P}$ can always be rewritten into a program $\mathfrak{P}_0$ that satisfies Assumption \ref{ass:copy}.
+Suppose $\tt{A}$ is a table in $\mathfrak{P}$ appearing on the RHS of multiple rules $R_1,\dots,R_n$.
+We can define $\tt{A}_i$ in $\mathfrak{P}_0$ for each $R_i$, and replace $\tt{A}$ with $\tt{A}_i$ in $R_i$, and add the rules $\tt{A}_i ~\tt{<=}~ \tt{A}$.
+The resultant $\mathfrak{P}_0$ is essentially equivalent to $\mathfrak{P}$, in the sense that any run of $\mathfrak{P}$ corresponds to a run of $\mathfrak{P}_0$, and vice versa.
+
+In practice, the above rewrite should not increase storage significantly.
+One only needs to keep a single additional bit for each tuple and $R_i$ to record whether the tuple is in $\tt{A}_i$.
+
+This assumption is really only required so that we can specify garbage collection for each individual rule $R_i$ without having to reason about the logic of composing the garbage collection together.
+
+We also point out that the rules in Assumption \ref{ass:copy} can be combined into a single rule using the product lattice notation:
+\begin{align*}
+R: && \langle \tt{B}_1, \dots, \tt{B}_n \rangle &\quad\tt{<=}\quad \langle \underbrace{\tt{A}, \dots, \tt{A}}_{\text{$n$ times}} \rangle
+\end{align*}
+so we can make the following assumption instead:
+\begin{assumption}
+\label{ass:single_rule}
+Every table or channel in $\mathfrak{P}$ appears in the RHS of at most one rule.
+\end{assumption}
+
+
+\subsection{Logical Garbage Collection Rewrite}
+The idea of the GC rewrite is to lift the program's state into tombstone lattices.
+Within the timestep, we perform operations on the lifted representation instead of the original state.
+Garbage collection occurs between timesteps, marking tuples for reclamation.
+In this section, our storage reclamation is only logical, i.e., tuples are never actually deleted.
+This leads to a program with no additional coordination required.
+We then present a second rewrite where the reclamation is instantiated; in the second rewrite, we guarantee confluence of output sets, but not of intermediate sets from which storage is reclaimed.
+
+For clarity, we also omit garbage collection for asynchronous rules.
+Doing so will allow us to develop simpler analyses that illuminate the overall approach.
+We will then revisit garbage collection for asynchronous rules in later sections, building on the approach in this section.
+
+We begin with a program $\mathfrak{P}$ with rules $R_1, \dots, R_n$, and rewrite it into a GC program $\mathfrak{P}_{GC}$.
+We assume that all tables in $\mathfrak{P}$ are persistent (with implicit rules $\tt{A} ~\tt{<+}~ \tt{A}$), but will make any persistence in $\mathfrak{P}$ explicit.
+
+
+
+\subsubsection{State}
+Let $\tt{A}$ be a table in $\mathfrak{P}$.
+We introduce the table $\tt{A}_\exists$ and tombstone set $\tt{A}_{TS} = (\tt{A}_\exists, \tt{A}_\top)$ in $\mathfrak{P}_{GC}$.
+Intuitively, $\tt{A}_\exists$ should reflect facts in $\tt{A}$ which are important for future derivations and thus not garbage collected.
+$\tt{A}_{TS}$ contains facts of the current timestep, but with tombstones marking tuples that could be deleted without affecting future derivations.
+We also add rule
+\begin{align}
+(\tt{A}_\exists, \tt{A}_\top) &\quad\tt{<+}\quad (\tt{A}_\exists, \tt{A}_\top)\label{eq:aexistmerge}
+\end{align}
+All non-GC rules in $\mathfrak{P}_{GC}$ will be of the form $(\tt{A}_\exists, \tt{A}_\top) ~\tt{<op>}~ (\tt{X}, \emptyset)$.
+
+
+\subsubsection{Merges}
+We next consider rules in the original program $\mathfrak{P}$.
+For every rule
+\begin{align}
+\tt{B} \quad\tt{<=}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align}
+in $\mathfrak{P}$, we add the rule
+\begin{align*}
+(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<=}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
+\end{align*}
+
+\subsubsection{Deferred merges}
+For the deferred merge rule
+\begin{align}
+\tt{B} \quad\tt{<+}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align}
+in $\mathfrak{P}$, we add the rule
+\begin{align*}
+(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<+}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
+\end{align*}
+
+\subsubsection{Asynchronous merges}
+Asynchronous merges are messaging rules between nodes.
+On the sender side, in $\mathfrak{P}$, we have the rule 
+\begin{align}
+\overline{\tt{B}} \quad\tt{<}\sim\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\end{align}
+and on the receiver side we have
+\begin{align}
+\tt{B} \quad\tt{<=}\quad \overline{\tt{B}}
+\end{align}
+These are respectively replaced in $\mathfrak{P}_{GC}$ by
+\begin{align}
+(\overline{\tt{B}}, \emptyset) &\quad\tt{<}\sim\quad \tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}
+\end{align}
+and
+\begin{align}
+(\tt{B}_\exists, \tt{B}_\exists) &\quad\tt{<=}\quad (\overline{\tt{B}}, \emptyset)
+\end{align}
+% Additionally, at the receiver node, we add a channel $\underline{\overline{\tt{B}}}$, and include the rule
+% \begin{align}
+% \underline{\overline{\tt{B}}} &\quad\tt{<}\sim\quad \overline{\tt{B}}
+% \end{align}
+% At the sender node, we add a table $\underline{\tt{B}}$ and include the rule
+% \begin{align}
+% \underline{\tt{B}} &\quad\tt{<=}\quad \underline{\overline{\tt{B}}}
+% \end{align}
+% Clearly a tuple is in $\underline{\tt{B}}$ only if it has been sent and received successfully.
+For this section, we do not perform garbage collection for asynchronous merge rules.
+That is, we treat all sets $\tt{A}_1, \dots, \tt{A}_n$ that appear as input on the RHS of asynchronous rules as `output' sets from which we never tombstone any tuple.
+
+\subsubsection{Garbage collection}
+The above rewrite rules do not perform any garbage collection; in fact, it is easy to see that they are equivalent to $\mathfrak{P}$.
+We will now add rules that mark tuples for reclamation.
+
+We say that a GC rule is safe for a rule $R_i$ if it only tombstones tuples that are guaranteed to have no effect on the future derivations of $R_i$.
+This will be made formal in the section below.
+
+Suppose that a table $\tt{A}$ is the input to a single rule $R: \tt{B} ~\tt{<op>}~ \tt{f}\tt{(}\tt{A},\tt{C}_1,\dots,\tt{C}_m\tt{)}$, where $\tt{<op>}$ is either a merge $\tt{<=}$ or deferred merge $\tt{<+}$, and $R$ is not the implicit persistence rule $\tt{A} ~\tt{<+} \tt{A}$.
+Suppose also that $\tt{GC}$ is a garbage collection rule that is safe for $R$.
+We will then add the following GC rule to $\mathfrak{P}_{GC}$:
+\begin{align}
+\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{m,TS} \rangle
+\quad\tt{<+}\quad
+\tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{m,TS}; \tt{B}_{TS}).
+\end{align}
+By Assumption \ref{ass:copy}, $\tt{C}_1,\dots,\tt{C}_m$ also do not appear in the input to any other rule of $\mathfrak{P}$.
+
+If the table $\tt{A}$ is the input to multiple rules $R_1, \dots, R_m$, then it must be the case that $R_i: \tt{B}_i ~\tt{<=}~ \tt{A}$ is an identity copy.
+In that case, we add the garbage collection rule
+\begin{align}
+(\tt{A}_\exists, \tt{A}_\top) \quad\tt{<+}\quad \tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})
+\end{align}
+where $\tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \left(\tt{A}_\exists - \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top}), \tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)\right)$
+We will show $\tt{GCCopy}$ is safe for each $R_i$.
+
+We highlight that we only add at most one GC rule for each $\tt{A}$ in $\mathfrak{P}_{GC}$\footnote{
+While it is possible to have multiple GC rules performing reclamation, we would require an additional restriction that the GC rules maintain the GC Invariant \ref{inv:merge_gc} under merges.
+(Maybe we can present this in an appendix?)
+}, i.e. each $\tt{A}$ only appears on the LHS of one GC rule.
+
+
+% \subsubsection{Example}
+% Here we show an example Bloom program $\mathfrak{P}$ which we rewrite to a GC-enabled program $\mathfrak{P}_{GC}$.
+% \begin{align}
+% \tt{A} &\quad\tt{<=}\quad \tt{chn\_in}\\
+% \tt{B} &\quad\tt{<=}\quad \pi_{x,y}\tt{(A)}\\
+% \tt{C} &\quad\tt{<+}\quad \pi_z\tt{(A)}
+% % \tt{chn\_out} &\quad\tt{<}\sim\quad \sigma_{x=1}\tt{(B)}\\
+% \end{align}
+% is rewritten as
+% \begin{align}
+% (\tt{A}_\exists, \tt{A}_\top) &\quad\tt{<+}\quad (\tt{A}_\exists, \tt{A}_\top)\\
+% (\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<+}\quad (\tt{B}_\exists, \tt{A}_\top)\\
+% (\tt{C}_\exists, \tt{C}_\top) &\quad\tt{<+}\quad (\tt{C}_\exists, \tt{A}_\top)\\
+% \nonumber\\
+% (\tt{A}_\exists, \tt{A}_\top) &\quad\tt{<=}\quad (\tt{chn\_in},\emptyset)\\
+% % \tt{chn\_ack\_in} &\quad\tt{<}\sim\quad \tt{chn\_in}\\
+% \nonumber\\
+% (\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<=}\quad (\pi_{x,y}\tt{(}\tt{A}_\exists \cup \tt{A}_\top\tt{)}, \emptyset)\\
+% \nonumber\\
+% (\tt{C}_\exists, \tt{C}_\top) &\quad\tt{<+}\quad (\pi_z\tt{(}\tt{A}_\exists \cup \tt{A}_\top\tt{)}, \emptyset)\\
+% \nonumber\\
+% % \tt{chn\_out} &\quad\tt{<}\sim\quad \sigma_{x=1}\tt{(}\tt{B}_\exists^{now} \cup \tt{B}_\top^{now}\tt{)}\\
+% % \tt{chn\_approx\_out} &\quad\tt{<=}\quad \tt{chn\_ack\_out}\\
+% % \nonumber\\
+% (\tt{A}_\exists, \tt{A}_\top)
+% &\quad\tt{<=}\quad
+% (\emptyset, (\tt{A}_\exists \cup \tt{A}_\top) \bowtie_{x,y} (\tt{B}_\exists \cup \tt{B}_\top)
+% \cap
+% ((\tt{A}_\exists \cup \tt{A}_\top) \bowtie_{z} (\tt{C}_\exists \cup \tt{C}_\top))\\
+% % (\tt{B}_\exists^{now}, \tt{B}_\top^{now})
+% % &\quad\tt{<=}\quad (\emptyset, (\tt{B}_\exists^{now} \cup \tt{B}_\top^{now}) \bowtie \tt{chn\_approx\_out})\\
+% \end{align}
+
+
+\subsection{Instantiated Garbage Collection Rewrite}
+
+\subsubsection{State}
+For a table $\tt{A}$ without primary keys in $\mathfrak{P}$, we introduce a corresponding $\tt{A}_I$ in $\mathfrak{P}_{iGC}$, and is persisted
+\[\tt{A}_I \quad\tt{<+}\quad \tt{A}_I\]
+
+For every table $\tt{A}$ with primary keys in $\mathfrak{P}$, we introduce a lattice $(\tt{A}_I, \tt{A}_!)$ in $\mathfrak{P}_{GC}$.
+Intuitively, $\tt{A}_!$ are the keys of all tuples that, at some point, existed in $\tt{A}$.
+As before, we persist the lattice with the deferred merge
+\[(\tt{A}_I, \tt{A}_!) \quad\tt{<+}\quad (\tt{A}_I, \tt{A}_!).\]
+
+For convenience, we will write $\tt{A}_E$ to mean $(\tt{A}_I, \tt{A}_!)$ if $\tt{A}$ has primary keys, and $\tt{A}_I$ otherwise.
+
+\subsubsection{Merge, Deferred Merge, Asynchronous Merge}
+A rule $R$ in $\mathfrak{P}$,
+\[\tt{B} \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}\]
+where $\tt{<op>}$ is one of $\tt{<=}$, $\tt{<+}$ or $\tt{<}\sim$, is replaced in $\mathfrak{P}_{iGC}$ by
+\[\tt{B}_I \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}\]
+if $\tt{B}$ has no primary keys, and otherwise
+\[(\tt{B}_I, \tt{B}_!) \quad\tt{<op>}\quad (\tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}, \pi_!(\tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}).\]
+
+
+
+
+\subsubsection{Garbage collection}
+A garbage collection rule in $\mathfrak{P}_{GC}$
+\begin{align*}
+\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS} \rangle
+\quad\tt{<+}\quad
+\tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}).
+\end{align*}
+is replaced in $\mathfrak{P}_{iGC}$ by
+\begin{align*}
+\langle \tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E} \rangle
+\quad\tt{<-}\quad
+\tt{iGC}(\tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}).
+\end{align*}
+

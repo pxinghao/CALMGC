@@ -1,0 +1,591 @@
+%!TEX root = bloom_logical.tex
+
+\section{Properties and Analysis of Logical Garbage Collection}
+\label{sec:logical}
+
+\subsection{Properties of GC rules}
+For our rewrite to be sensible, we require that the GC rules have certain properties.
+In particular, the GC rules must be safe -- they should only tombstone tuples that have no effect on future derivations.
+We provide some intuition for this safety in the following examples.
+
+\begin{example}[Safety for Projection]
+Suppose we have the projection rule $\tt{X} ~\tt{<=}~ \pi_S(\tt{Y})$ in $\mathfrak{P}$, and correspondingly $\tt{X}_{TS} ~\tt{<=}~ (\pi_S(\tt{Y}_\exists \cup \tt{Y}_\top), \emptyset)$ in $\mathfrak{P}_{GC}$.
+% , and $\tt{X}_I ~\tt{<=}~ \pi_S(\tt{Y}_I)$ in $\mathfrak{P}_{iGC}$.
+% Our goal is to always maintain the relationships
+% $\tt{X}_\exists \subseteq \tt{X}_I \subseteq \tt{X}_\exists \cup \tt{X}_\top = \tt{X}$ and
+% $\tt{Y}_\exists \subseteq \tt{Y}_I \subseteq \tt{Y}_\exists \cup \tt{Y}_\top = \tt{Y}$.
+Since we wish to eventually reclaim tombstoned tuples, these tuples in $\tt{Y}_\top$ should have no effect on the execution of the projection rule.
+As explained in Section \ref{sec:prelims:exec}, executing the rule is equivalent to making the assignment $\tt{X}_{\exists,t,i+1} \cup \tt{X}_{\top,t,i+1} := \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\tt{Y}_{\exists,t,i} \cup \tt{Y}_{\top,t,i})$.
+For $\tt{Y}_\top$ to not affect this execution, it must be the case that $\tt{Y}_{\top,t,i} \subseteq \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i}$, so that $\tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\tt{Y}_{\exists,t,i} \cup \tt{Y}_{\top,t,i}) = \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\tt{Y}_{\exists,t,i})$.
+Thus, as long as $\tt{Y}_\top \subseteq \tt{X}_\exists \cup \tt{X}_\top$, it suffices to keep $\tt{Y}_\exists$ and we may safely discard $\tt{Y}_\top$.
+
+As the execution of the program continues, $\tt{Y}_\exists$ may grow as tuples are merged into it, forming a larger $\widehat{\tt{Y}} \supseteq \tt{Y}_\exists$.
+Despite this growth, the execution is still unaffected, i.e., $\tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\widehat{\tt{Y}} \cup \tt{Y}_{\top,t,i}) = \tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i} \cup \pi_S(\widehat{\tt{Y}})$, since we have ensured that $\tt{Y}_\top \subseteq \tt{X}_\exists \cup \tt{X}_\top$.
+\end{example}
+
+\begin{example}[Safety for Set Difference]
+Suppose we have the rule $\tt{Z} ~\tt{<=}~ \tt{X} - \tt{Y}$ in $\mathfrak{P}$, and correspondingly $\tt{Z}_{TS} ~\tt{<=}~ ((\tt{X}_\exists \cup \tt{X}_\top) - (\tt{Y}_\exists \cup \tt{Y}_\top), \emptyset)$ in $\mathfrak{P}_{GC}$.
+% , and $\tt{Z}_I ~\tt{<=}~ \tt{X}_I - \tt{Y}_I$ in $\mathfrak{P}_{iGC}$.
+Suppose also that $\tt{X}_E$ has a key-augmented representation in $\mathfrak{P}_{iGC}$ while $\tt{Y}_I$ has a non-augmented representation.
+As in the previous example, we desire that the execution of the rule is unaffected by deletion of tombstones.
+In particular, it suffices to have
+$(\tt{X}_{\exists,t,i} \cup \tt{X}_{\top,t,i}) - (\tt{Y}_{\exists,t,i} \cup \tt{Y}_{\top,t,i}) = \tt{X}_{\exists,t,i} - \tt{Y}_{\exists,t,i}$.
+We observe that if a tuple $x$ appears in both $\tt{X}$ and $\tt{Y}$, we can safely tombstone $x$ from $\tt{X}$ without affecting the set difference.
+Once we have $x \in \tt{X}_\top$, it is not in $\tt{X}_\exists$, so we can also safely tombstone $x$ from $\tt{Y}$.
+Hence, it suffices to ensure $\tt{Y}_\top \subseteq \tt{X}_\top \subseteq \tt{Y}_\top \cup \tt{Y}_\exists$.
+We may then discard $\tt{X}_\top$ and $\tt{Y}_\top$ and keep only $\tt{X}_\exists$, $\tt{Y}_\exists$.
+We also keep $\tt{X}_!$ in the key-augmented representation; its use will be demonstrated in the following paragraph.
+
+As the execution of the program continues, both $\tt{X}_\exists$ and $\tt{Y}_\exists$ may grow as tuples are merged into them, former larger $\widehat{\tt{X}} \supseteq \tt{X}_\exists$ and $\widehat{\tt{Y}} \supseteq \tt{Y}_\exists$.
+Since we use the key-augmented representation for $\tt{X}$, tuples that we add to $\tt{X}_\exists$ must be previously unseen tuples not in $\tt{X}_!$, which implies $\widehat{\tt{X}} \cap \tt{X}_\top = \emptyset$.
+If we ensure that $\tt{Y}_\top \subseteq \tt{X}_\top \subseteq \tt{Y}_\top \cup \tt{Y}_\exists$, we can observe that
+$
+(\widehat{\tt{X}} \cup \tt{X}_\top) - (\widehat{\tt{Y}} \cup \tt{Y}_\top)
+= \widehat{\tt{X}} - (\widehat{\tt{Y}} \cup \tt{Y}_\top)
+= \widehat{\tt{X}} - \widehat{\tt{Y}}
+$,
+where the second equality holds because $\tt{Y}_\top \cap \widehat{\tt{X}} \subseteq \tt{X}_\top \cap \widehat{\tt{X}} = \emptyset$.
+Thus, the execution of the set difference rule is unaffected by the deletion of tombstones.
+\end{example}
+
+\begin{invariant}[Merge GC Invariant]\label{inv:merge_gc}
+Consider any merge or deferred merge rule 
+\[R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}\]
+where $\tt{<op>}$ is either $\tt{<=}$ or $\tt{<+}$,
+$\tt{A}_1,\dots,\tt{A}_n$ are non-augmented sets,
+$\tt{U}_1,\dots,\tt{U}_m$ are key-augmented sets,
+and RHS is not a channel.
+We require that, 
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,$
+$\quad
+\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle \geq \langle \tt{U}_1, \dots, \tt{U}_m \rangle$
+such that $\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top} = \dots = \widehat{\tt{U}}_1 \cap \tt{U}_{m,\top}$:
+\begin{align}
+\tt{f(}\widehat{\tt{A}}_1,\dots,\widehat{\tt{A}}_n, \widehat{\tt{U}}_{1,\exists},\dots,\widehat{\tt{U}}_{n,\exists}\tt{)}
+\cup \tt{B}_\exists\cup \tt{B}_\top
+~=~
+\tt{f(}
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top},\dots,\widehat{\tt{A}}_n \cup \tt{A}_{n,\top}, \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top},\dots,\widehat{\tt{U}}_n \cup \tt{U}_{n,\top}\tt{)} 
+\cup \tt{B}_\exists \cup \tt{B}_\top.
+\label{eq:inv_merge_gc}
+\end{align}
+\end{invariant}
+
+We are interested in keeping around only $\langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle$ instead of $\langle \tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists}  \cup \tt{A}_{n,\top}\rangle$.
+However, in the process of executing $\mathfrak{P}_{GC}$, we may find ourselves with a larger\footnote{
+  The restrictions of Edelweiss ensures that lattices can only grow over time.
+    In Dedalus$^+$ terminology, the program is `temporally inflationary'.
+} lattice $\langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle$.
+In such a case, we wish to ensure that the execution of $R$ in $\mathfrak{P}_{GC}$ (LHS of \eqref{eq:inv_merge_gc}) matches the corresponding execution of $R$ in $\mathfrak{P}$ (RHS of \eqref{eq:inv_merge_gc}) as if we had not reclaimed $\tt{A}_{1,\top}, \dots, \tt{A}_{n,\top}$.
+As we will see in the examples below, the invariant often reduces to a simple intuitive assertion.
+
+Note that the above invariant is a stronger assertion for $\tt{A}_1, \dots, \tt{A}_n$ than for $\tt{U}_1, \dots, \tt{U}_n$, since we place an extra restriction on $\widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m$.
+Despite that, we will sometimes choose to treat some tables $\tt{U}$ as if they do not have primary keys, and show that Invariant \ref{inv:merge_gc} holds for the larger range of $\widehat{\tt{U}}$.
+This is because we will later place a stronger requirement (Property \ref{property:instantiated_gc_consistent}) on the instantiated garbage collection for tables with primary keys, and it may be more convenient to prove Property \ref{property:gc_safety} without primary keys than it is to show Property \ref{property:instantiated_gc_consistent} with primary keys.
+
+\begin{property}[GC Rule Output Respect]
+A garbage collection rule $\tt{GC}$ \emph{respects output relations} if it does not tombstone tuples from output relations.
+That is, letting $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$, then whenever $\tt{A}_j$ is an output relation and $\tt{A}_{n,\top} = \emptyset$, it must be the case that $\tt{A}_{j,\top}^* = \emptyset$
+\end{property}
+
+\begin{property}[Merge GC Safety]
+\label{property:gc_safety}
+Let $R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ be a merge or deferred merge rule.
+A garbage collection rule $\tt{GC}$ is safe for $R$ if it respects output relations, and maintains the Merge GC Invariant \ref{inv:merge_gc} for $R$.
+That is, if
+\begin{enumerate}
+\item $\langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{U}_{1,TS}, \dots, \tt{U}_{m,TS} \rangle$ and $\tt{B}_{TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc} for $R$, and
+\item $\tt{B}_\exists \cup \tt{B}_\top \supseteq \tt{f}\tt{(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}, \tt{U}_{1,\exists} \cup \tt{U}_{1,\top},\dots,\tt{U}_{n,\exists} \cup \tt{U}_{n,\top}\tt{)}$,
+\end{enumerate}
+then $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*, \tt{U}_{1,TS}^*, \dots, \tt{U}_{m,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS},$ $\tt{U}_{1,TS}, \dots, \tt{U}_{m,TS};$ $\tt{B}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$ and $\tt{B}_{TS}$ also satisfies the Merge GC Invariant \ref{inv:merge_gc}.
+\end{property}
+
+\begin{property}[GC Rule Monotonicity]
+% Suppose $\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc}.
+% Suppose that $\tt{A}'_{1,TS}, \dots, \tt{A}'_{n,TS}, \tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS}$ also satisfies Merge GC Invariant \ref{inv:merge_gc} and 
+Suppose that $\tt{A}'_{i,TS} \geq \tt{A}_{i,TS}$ and $\tt{B}'_{j,TS} \geq \tt{B}_{j,TS}$.
+Then, $\tt{GC}$ is \emph{monotone} if $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) \leq \tt{GC}(\tt{A}'_{1,TS}, \dots, \tt{A}'_{n,TS}; \tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS})$.
+\end{property}
+
+\begin{property}[GC Rule Conservation]
+\label{property:gc_conservative}
+For a garbage collection rule $\tt{GC}$, denote
+$\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$.
+Then, $\tt{GC}$ is \emph{conservative} if $\tt{A}_{j,\exists}^* \subseteq \tt{A}_{j,\exists}$ and $\tt{A}_{j,\exists}^* \cup \tt{A}_{j,\top}^* = \tt{A}_{j,\exists} \cup \tt{A}_{j,\top}$ for all $j=1,\dots,n$.
+That is, $\tt{GC}$ only moves tuples from $\exists$ to $\top$.
+\end{property}
+
+\subsection{Examples of GC rules}
+\label{sec:logical:example}
+A number of example logical garbage collection rules are presented below.
+Each of these rules are monotone, conservative, and safe for some rule $R$.
+\begin{example}[Trivial GC]
+$\tt{GCNone}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS} \rangle$.
+\end{example}
+The trivial GC returns the tombstone lattices unchanged.
+If $\tt{A}_1, \dots, \tt{A}_n$ are all output relations, then $\tt{GCNone}$ is the only garbage collection rule that respects output relations.
+
+% \begin{example}[Indicator GC]
+% Consider the indicator function $\tt{f}$ with $\tt{f}\tt{(}\tt{X}\tt{)} = \emptyset$ if $\tt{X} = \emptyset$ and $\{1\}$ otherwise, and $R: \tt{B} ~\tt{<=}~ \tt{f}\tt{(}\tt{X}\tt{)}$.
+% Suppose that $\emptyset \subseteq \tt{X} \subseteq \{a,b,c\}$.
+% Define $\tt{GCInd}_i(\tt{X}_{TS}; \tt{B}_{TS}) = (\tt{X}_\exists - \tt{X}_i^*, \tt{X}_\top \cup \tt{X}_i^*)$, for $i=1,2,3$ and
+% \begin{align*}
+% \tt{X}_1^* = \begin{cases}
+% \emptyset & \text{if $|\tt{X}_\exists \cup \tt{X}_\top| \leq 1$} \\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b\}$}\\
+% c & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, c\}$}\\
+% b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{b, c\}$}\\
+% a,b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b, c\}$}\\
+% \end{cases}
+% &&
+% \tt{X}_2^* = \begin{cases}
+% \emptyset & \text{if $|\tt{X}_\exists \cup \tt{X}_\top| \leq 1$} \\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b\}$}\\
+% c & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, c\}$}\\
+% b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{b, c\}$}\\
+% a,b,c & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b, c\}$}\\
+% \end{cases}
+% &&
+% \tt{X}_3^* = \begin{cases}
+% \emptyset & \text{if $|\tt{X}_\exists \cup \tt{X}_\top| \leq 1$} \\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b\}$}\\
+% a & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, c\}$}\\
+% b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{b, c\}$}\\
+% a,b & \text{if $\tt{X}_\exists \cup \tt{X}_\top = \{a, b, c\}$}\\
+% \end{cases}
+% \end{align*}
+% Then $\tt{GCInd}_1$ is safe for $R$ but not monotone, $\tt{GCInd}_2$ is monotone but not safe for $R$, and $\tt{GCInd}_3$ is monotone and safe for $R$.
+% \end{example}
+% $\tt{GCInd}_1$ is not monotone because $\tt{GCInd}_1((\{a,c\}, \emptyset); \tt{B}_{TS}) \not\leq \tt{GCInd}_1((\{a,b,c\}, \emptyset); \tt{B}_{TS}); \tt{B}_{TS})$.
+% $\tt{GCInd}_2$ is not safe because garbage collection on $\{a, b, c\}$ causes 
+% 
+% GC on indicator: $\emptyset -> 0$, non-$\emptyset -> 1$.
+% If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI but not monotone.
+% If GC(a,b) = a, GC(a,c) = c, GC(b,c) = b, GC(a,b,c) = a,b,c then not satisfies GCI but monotone.
+% If GC(a,b) = a, GC(a,c) = a, GC(b,c) = b, GC(a,b,c) = a,b then satisfies GCI and monotone.
+
+\begin{example}[Copy GC]
+Suppose $\tt{A}$ appears as input on the RHS of rules $R_i: \tt{B}_i ~\tt{<op>}~ \tt{A}$, where $\tt{<op>}$ is either a merge or deferred merge.
+Then $\tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \left(\tt{A}_\exists - \tt{B}_\cap, \tt{A}_\top \cup \tt{B}_\cap\right)$,
+where $\tt{B}_\cap = \tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$,
+is a monotone, conservative garbage collection rule that is safe for $R_1, \dots, R_n$.
+\end{example}
+Clearly, $\tt{GCCopy}$ is conservative.
+For the copy rule, the Merge GC Invariant \ref{inv:merge_gc} reduces to $\forall i, \tt{A}_\exists \cup \tt{B}_{i,\exists} \cup \tt{B}_{i,\top} = \tt{A}_\exists \cup \tt{A}_\top \cup \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, which is the case iff $\tt{A}_\top \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, since $\tt{A}_\exists \cap \tt{A}_\top = \emptyset$.
+That is, tombstoned tuples are those that have been copied to all $\tt{B}_i$'s.
+Hence, if $\tt{A}_{TS}, \tt{B}_{i,TS}$ satisfies Invariant \ref{inv:merge_gc}, we have $\tt{A}_\top \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, and so $\tt{A}_\top \cup \tt{B}_\cap = \tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right) \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$.
+Therefore, $\tt{GCCopy}$ is safe for $R_i$.
+
+Suppose $\tt{A}_\text{TS}' \geq \tt{A}_\text{TS}$, i.e., $\tt{A}_\top' \supseteq \tt{A}_\top$ and $\tt{A}_\top' \cup \tt{A}_\exists' \supseteq \tt{A}_\top \cup \tt{A}_\exists$.
+Suppose also $\tt{A}_\text{TS}'$ satisfies the Merge GC Invariant \ref{inv:merge_gc} with respect to $\tt{B}_{i,\text{TS}}' \geq \tt{B}_{i,\text{TS}}$.
+Then
+\begin{align*}
+\tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
+&\subseteq \tt{A}_\top' \cup \left((\tt{A}_\exists' \cup \tt{A}_\top') \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right)
+% \\
+% &= \tt{A}_\top' \cup \left(\tt{A}_\exists' \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right) \cup \left(\tt{A}_\top' \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right)\\
+&= \tt{A}_\top' \cup \left(\tt{A}_\exists' \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists}' \cup \tt{B}_{i,\top}')\right).
+\end{align*}
+Furthermore, it follows from the GC Rule Conservation Property \ref{property:gc_conservative}, we also have that $(\tt{A}_\exists - \tt{B}_\cap) \cup (\tt{A}_\top \cup \tt{B}_\cap) \subseteq (\tt{A}_\exists' - \tt{B}_\cap') \cup (\tt{A}_\top' \cup \tt{B}_\cap')$.
+Hence, $\tt{GCcopy}$ is monotone.
+
+Note also that if the copies are done via a (non-deferred) merge, and if we reach a fixed point at $t$, $\iota$, then it must be that $\tt{B}_{i,\exists,t,\iota} \cup \tt{B}_{i,\top,t,\iota} \supseteq \tt{A}_{\exists,t,\iota} \cup \tt{A}_{\top,t,\iota}$, so $\tt{GCCopy}$ can tombstone all of $\tt{A}_\exists$.
+~
+
+% GC-Max: GC on A, B gives some tombstones larger than GC on any A' < A, B' < B, and is of largest cardinality among all such tombstones.
+% Note: GC-Max is not unique; but since monotone, will still give a unique minimal model for each GC-Max rule.
+
+\begin{example}[Project GC]
+\label{ex:project_gc}
+Consider the projection $R: \tt{B} ~\tt{<op>}~ \pi_S(\tt{A})$, where $\tt{<op>}$ is a merge or deferred merge.
+Then $\tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS}) = (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*)$ where $\tt{A}^* = \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\}$
+is safe for $R$.
+\end{example}
+Simple relational algebraic calculations would show that the Merge GC Invariant \ref{inv:merge_gc} reduces to $\pi_S(\tt{A}_\top) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+By definition, $\pi_L(\tt{A}^*) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+Hence, if $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfies the invariant, then $\pi_L(\tt{A}_\top \cup \tt{A}^*) = \pi_L(\tt{A}_\top) \cup \pi_L(\tt{A}^*) \subseteq \tt{B}_\exists \cup \tt{B}_\top$, so $\tt{GCProject}$ is safe for $R$. 
+
+\begin{example}[Select GC]
+Consider the selection $R: \tt{B} ~\tt{<op>}~ \sigma_P(\tt{A})$, where $\tt{<op>}$ is either a merge or deferred merge.
+Then $\tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS}) = (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*)$ where $\tt{A}^* = \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))$ is safe for $R$.
+\end{example}
+Similar to Example \ref{ex:project_gc}, the Merge GC Invariant \ref{inv:merge_gc} for selection reduces to $\sigma_P(\tt{A}_\top) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+If $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfy the invariant, then
+\begin{align*}
+\sigma_P(\tt{A}_\top \cup \tt{A}^*)
+&= \sigma_P(\tt{A}_\top) \cup \sigma_P(\sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)))\\
+&= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
+&= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
+&\subseteq \tt{B}_\exists \cup \tt{B}_\top,
+\end{align*}
+so $\tt{GCSelect}$ is safe for $R$.
+
+\begin{example}[Linear GC]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{f}(\tt{A})$, where $\tt{f}$ is a linear function, i.e., $\tt{f}(\tt{A}) = \bigcup_{a\in \tt{A}} \tt{f}(\{a\})$.
+Then $\tt{GCAll}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = (\emptyset, \tt{A}_\exists \cup \tt{A}_\top)$ is safe for $R$.
+\end{example}
+Since $\tt{f}$ is linear, Invariant \ref{inv:merge_gc} reduces to $\tt{f}\tt{(}\tt{A}_\top\tt{}) \subseteq \tt{B}_\exists \cup \tt{B}_\top$, but this is true under the condition $\tt{B}_\exists \cup \tt{B}_\top \supseteq \tt{f}\tt{(}\tt{A}_{\exists} \cup \tt{A}_{\top}\tt{)} = \tt{f}\tt{(}\tt{A}_\exists\tt{}) \cup \tt{f}\tt{(}\tt{A}_\top\tt{})$.
+Thus, Invariant \ref{inv:merge_gc} is trivially true for linear $\tt{f}$.
+Intuitively, a tuple $a \in \tt{A}_\exists$ is independent of all other tuples when $\tt{f}$ is linear, and hence, its complete effects will have been realized in $\tt{B}$ (either through a merge or deferred merge) by the point at which we perform garbage collection.
+Therefore, we can always reclaim the entire set without impacting our results.
+
+In particular, observe that the copy, select, and project rules of previous examples are all linear, and thus can be fully reclaimed at the end of each timestep.
+
+\begin{example}[Join GC]
+\label{ex:join_gc_no_manifests}
+Consider the join $R: \tt{B} ~\tt{<op>}~ \tt{A} \bowtie_{\tt{A}.k_a = \tt{C}.k_c} \tt{C}$, where $\tt{<op>}$ is either a merge or deferred merge.
+The only garbage collection rule that is safe for $R$ is the trivial $\tt{GCTrivial}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle \tt{A}_{TS}, \tt{C}_{TS} \rangle$.
+\end{example}
+Without additional information, one cannot guarantee that a tuple in $\tt{A}$ will not match any future tuple in $\tt{C}$ and vice versa.
+In some cases, however, one may be provided with the specific information that no more tuples matching the attribute will ever appear.
+
+Formally, let $\mathcal{X}$ be the domain of possible tuples for a table $\tt{X}$, and denote the powerset of $\mathcal{X}$ as $\mathbb{P}(\mathcal{X})$.
+Also let $\mathcal{K}$ be the domain of possible values of an attribute $\tt{X}.k$.
+A manifest $p = (p.k, p.\tt{X}) \in \mathcal{K} \times \mathbb{P}(\mathcal{X})$ maps a key in $\mathcal{K}$ to a subset of $\mathbb{P}(\mathcal{X})$.
+We denote by $\tt{X}$ by $\tt{P}_\tt{X}$ a table of manifests (with $k$ as its primary key) for $\tt{X}$, and say it is consistent with $\tt{X}$ if $\forall p \in \tt{P}_\tt{X}$, $p.\tt{X} \supseteq \{x \in \tt{X} ~:~ x.k = p.k\}$.
+We will always assume that manifest tables are always consistent.
+
+In the join rule above, we can reclaim from $\tt{A}$ given manifests on $\tt{C}$ and vice versa:
+
+\begin{example}[Join with manifests]
+Consider the join in Example \ref{ex:join_gc_no_manifests}, now augmented with manifest tables $\tt{P}_\tt{A}$ and $\tt{P}_\tt{C}$.
+(If manifests are not available, we can always let $\tt{P} = \emptyset$ with no loss of generality.)
+The garbage collection rule $\tt{GCJoin}(\tt{A}_{TS}, \tt{P}_{\tt{A},TS}, \tt{C}_{TS}, \tt{P}_{\tt{C},TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{P}_{\tt{A},\exists} - \tt{P}_\tt{A}^*, \tt{P}_{\tt{A},\top} \cup \tt{P}_\tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*), (\tt{P}_{\tt{C},\exists} - \tt{P}_\tt{C}^*, \tt{P}_{\tt{C},\top} \cup \tt{P}_\tt{C}^*) \rangle$, with
+\begin{align*}
+\tt{A}^* &= \left\{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\right\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
+\tt{C}^* &= \left\{c \in \tt{C}_\exists \cup \tt{C}_\top ~:~ \exists p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(p_a.\tt{A} \times \{c\} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\right\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}
+\end{align*}
+is safe for the join.
+\end{example}
+In words, a tuple $a$ can be tombstoned if it matches a punctuation $p_c$ in $\tt{P}_\tt{C}$ \emph{and} the result of joining $\{a\}$ with $\tt{C}$ is already effected in $\tt{B}_{TS}$.
+Hence, any $c \in \tt{C}$ either does not match $a$, or is already joined with $a$ in $\tt{B}$ and so will not affect any future join computation.
+In addition, we tombstone a punctuation $p_a$ if it matches a punctuation $p_c$ and the join of their sets $p_a.\tt{A} \times p_c.\tt{C}$ is already effected in $\tt{B}_{TS}$.
+It is a simple exercise to show that $\tt{GCJoin}$ tombstones a punctuation $p_a$ only when its set $p_a.\tt{A}$ is tombstoned (or does not exist yet), i.e., $(p_a \in \tt{P}_{\tt{A},\top}) \implies \tt{A}_\exists \cap p_a.\tt{A} = \emptyset \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$.
+
+\begin{example}[DR+: Positive Difference Reclamation]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then the rule $\tt{GCDR+}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), \tt{C}_{TS}\rangle$
+where $\tt{A}^* = (\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)$
+is safe for $R$.
+\end{example}
+For set differences, the Merge GC Invariant \ref{inv:merge_gc} reduces to
+$\forall \widehat{\tt{A}} \supseteq \tt{A}_\exists, \forall \widehat{\tt{C}} \supseteq \tt{C}_\exists$: $\widehat{\tt{A}} - \widehat{\tt{C}} = (\widehat{\tt{A}} \cup \tt{A}_\top) - (\widehat{\tt{C}} \cup \tt{C}_\top)$.
+In the case where $\widehat{\tt{A}} = \tt{A}_\exists$ and $\widehat{\tt{C}} = \tt{C}_\exists$, it implies that $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$;
+in the case where $\widehat{\tt{A}} = \tt{A}_\exists \cup \tt{C}_\top$ and $\widehat{\tt{C}} = \tt{A}_\exists \cup \tt{C}_\exists$, it implies that $\tt{C}_\top = \emptyset$.
+Conversely $\tt{C}_\top = \emptyset$ and $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$ suffices to satisfy the invariant.
+One can now easily verify that $\tt{GCDR+}$ maintains the invariant.
+
+\begin{example}[DR-: Negative Difference Reclamation]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge, and $\tt{A}$ is a table with primary keys.
+Then the rule $\tt{GCDR-}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*)\rangle$,
+where $\tt{A}^* = (\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)$ and $\tt{C}^* = (\tt{C}_\exists \cup \tt{C}_\top) \cap \tt{A}_\top$,
+is safe for $R$.
+\end{example}
+Since primary keys are available for $\tt{A}$, the Merge GC Invariant \ref{inv:merge_gc} reduces to
+$\forall \widehat{\tt{A}} \supseteq \tt{A}_\exists, \widehat{\tt{A}} \cap \tt{A}_\top = \emptyset, \forall \widehat{\tt{C}} \supseteq \tt{C}_\exists$: $\widehat{\tt{A}} - \widehat{\tt{C}} = (\widehat{\tt{A}} \cup \tt{A}_\top) - (\widehat{\tt{C}} \cup \tt{C}_\top)$.
+In the case where $\widehat{\tt{A}} = \tt{A}_\exists$ and $\widehat{\tt{C}} = \tt{C}_\exists$, it implies that $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$;
+in the case where $\widehat{\tt{A}} = \tt{A}_\exists \cup (\tt{C}_\top - \tt{A}_\top)$ and $\widehat{\tt{C}} = \tt{A}_\exists \cup \tt{C}_\exists$, it implies that $\tt{C}_\top \subseteq \tt{A}_\top$.
+Conversely $\tt{C}_\top \subseteq \tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$ suffices to satisfy the invariant.
+One can now easily verify that $\tt{GCDR-}$ maintains the invariant.
+
+
+
+
+
+\subsection{Analysis of GC Rewrite}
+
+\subsubsection{Correctness}
+\label{sec:logical:analysis:correctness}
+
+\begin{lemma}
+\label{lem:unchangedexists}
+For every set $\tt{A}$, we have that $\tt{A}_{\top,t,i} = \tt{A}_{\top,t,0}$.
+\end{lemma}
+\begin{proof}
+The proof is straightforward: all non-GC rules are of the form $(\tt{A}_\exists, \tt{A}_\top) ~\tt{<op>}~ (\tt{X}, \emptyset)$, and all GC rules are deferred merges.
+Thus, $\tt{A}_\top$ is unchanged during an instantaneous run.
+\end{proof}
+Due to Lemma \ref{lem:unchangedexists}, we can write $\tt{A}_{\top,t}$ in place of $\tt{A}_{\top,t,i}$.
+
+\begin{lemma}
+\label{lem:merge_gc_inv}
+The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc} for any rule $R$.
+\end{lemma}
+\begin{proof}
+We prove the lemma for any given $R$ by an induction on $t$ and $i$.
+That is, we show for every $t$ and $i$,
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle$,
+such that
+$\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top,t,i} = \dots =  \widehat{\tt{U}}_n \cap \tt{U}_{n,\top,t,i}$,
+\begin{align}
+&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+  \widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}
+\nonumber\\
+=&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}. \label{eq:mergegcinv_withtime}
+\end{align}
+At $t=0$, $i=0$, we have $\tt{A}_{k,\top,0} = \tt{U}_{j,\top,0} = \tt{B}_{\top,0} = \emptyset$ for all $j=1,\dots,m$ and $k=1,\dots,n$, so the statement \eqref{eq:mergegcinv_withtime} is trivially true.
+
+Assume that \eqref{eq:mergegcinv_withtime} is true at some $t$ and $i-1$.
+The assignment at $t$, $i$, is derived from applying a merge operator to the assignment at $t$, $i-1$, and may only grow $\tt{A}_{1,\exists}, \dots, \tt{A}_{n,\exists}$, $\tt{U}_{1,\exists}, \dots, \tt{U}_{m,\exists}$, and $\tt{B}_\exists$,
+but keeps $\tt{A}_{1,\top}, \dots, \tt{A}_{n,\top}$, $\tt{U}_{1,\top}, \dots, \tt{U}_{m,\top}$, and $\tt{B}_\top$ unchanged.
+This also implies that $\widehat{\tt{U}}_k \cap \tt{U}_{k,\top,t,i-1} = \emptyset \implies \widehat{\tt{U}}_k \cap \tt{U}_{k,\top,t,i-1} = \emptyset$.
+Write $\widetilde{\tt{B}} = \tt{B}_{\exists,t,i} - \tt{B}_{\exists,t,i-1}$.
+Then, $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle \geq \langle \tt{A}_{1,\exists,t,i-1},\dots,\tt{A}_{n,\exists,t,i-1} \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle \geq \langle \tt{U}_{1,\exists,t,i-1},\dots,\tt{U}_{n,\exists,t,i-1} \rangle$,
+such that
+$\forall j=1,\dots,m$, $\widehat{\tt{U}}_j \cap \tt{U}_{1,\top,t} = \emptyset$,
+\begin{align*}
+&\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+  \widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}\\
+=&
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+  \widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}\\
+=&
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}\\
+=&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}
+\end{align*}
+where the second equality follows from the inductive hypothesis.
+
+Next, we show that if \eqref{eq:mergegcinv_withtime} is true at some fixed point $t-1$ and $i=\iota$, then it is also true at $t$, $i=0$.
+By design / assumption, there is only one garbage collection rule $\tt{GC}$ in $\mathfrak{P}_{GC}$ that has any of $\tt{A}_{1,TS},\dots,\tt{A}_{n,TS}$ on its LHS.
+Note that we can express $\forall j=1,\dots,n$,
+\begin{align*}
+(\tt{A}_{j,\exists,t,0}, \tt{A}_{j,\top,t})
+= (\tt{A}_{j,\exists,t-1,\iota}, \tt{A}_{j,\top,t-1})
+\cup (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)
+\cup \bigcup_{k=1}^l (g_k(\tt{C}_{k1,TS,t-1,\iota}, \dots, \tt{C}_{kn_k,TS,t-1,\iota}), \emptyset)
+\end{align*}
+where $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*\rangle = \tt{GC}(\tt{A}_{1,TS,t-1,\iota}, \dots, \tt{A}_{n,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{m,TS,t-1,\iota})$.
+By the conservative property of $\tt{GC}$, $(\tt{A}_{j,\exists,t-1,\iota}, \tt{A}_{j,\top,t-1}) \leq (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)$, so the above equation can be written as
+\begin{align*}
+(\tt{A}_{j,\exists,t,0}, \tt{A}_{j,\top,t})
+= (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)
+\cup \bigcup_{k=1}^l (g_k(\tt{C}_{k1,TS,t-1,\iota}, \dots, \tt{C}_{kn_k,TS,t-1,\iota}), \emptyset)
+\end{align*}
+which implies $\tt{A}_{j,\exists,t,0} \supseteq \tt{A}_{j,\exists}^*$ and $\tt{A}_{j,\top,t} = \tt{A}_{j,\top}^*$.
+
+The same holds for $\tt{U}_j$ for $j=1,\dots,m$, which further implies that $\widehat{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \emptyset \implies \widehat{\tt{U}}_j \cap \tt{U}_{j,\top,t} = \emptyset$.
+
+Also, by the monotonicity of $\tt{<+}$, we see that $\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}$.
+Let $\widetilde{\tt{B}} = (\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}) - (\tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1})$.
+Note that
+$\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{f}\tt{(}\tt{A}_{\exists,1,t-1,\iota} \cup \tt{A}_{1,\top,t-1},\dots,\tt{A}_{n,\exists,t-1,\iota} \cup \tt{A}_{n,\top,t-1}, \tt{U}_{1,\exists,t-1,\iota} \cup \tt{U}_{1,\top,t-1},\dots,\tt{U}_{n,\exists,t-1,\iota} \cup \tt{U}_{n,\top,t-1}\tt{)}$ ---
+if $R$ is a merge rule, it is true because $t,\iota$ is a fixed point;
+if $R$ is a deferred merge rule, then the inclusion holds by definition of $\tt{B}_{TS,t,0}$.
+
+Observe that $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n \rangle$ $\geq$ $\langle \tt{A}_{1,\exists,t,0}, \dots, \tt{A}_{n,\exists,t,0} \rangle$ $\geq$ $\langle \tt{A}_{1,\exists}^*, \dots, \tt{A}_{n,\exists}^* \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n \rangle$ $\geq$ $\langle \tt{U}_{1,\exists,t,0}, \dots, \tt{U}_{n,\exists,t,0} \rangle$ $\geq$ $\langle \tt{U}_{1,\exists}^*, \dots, \tt{U}_{n,\exists}^* \rangle$,
+such that $\emptyset = \widetilde{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \widetilde{\tt{U}}_{j,\top,t}$ for all $j = 1,\dots,m$,
+\begin{align*}
+&
+\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}
+\cup \tt{f}(\widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n, \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m)
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(\widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n, \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m)
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top}^*, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top}^*,
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top}^*, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top}^*)
+&\text{(\tt{GC} safety)}
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t}, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t}, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t})
+\\
+=&~
+\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t}, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t}, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t})
+\end{align*}
+which establishes that the Merge GC Invariant \ref{inv:merge_gc} holds at $t$ and $i=0$.
+\end{proof}
+
+\begin{rmk}
+Lemma \ref{lem:merge_gc_inv} is required for showing that the instantiated GC program $\mathfrak{P}_{iGC}$ presented later is correct, but not used in the below Theorem \ref{thm:equivalence_of_sets} establishing correctness of $\mathfrak{P}_{GC}$.
+\end{rmk}
+
+
+
+
+It is easy to see that $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ have equivalent output sets.
+That is, every run of $\mathfrak{P}$ has a one-to-one corresponding run of $\mathfrak{P}_{GC}$ that produces lattices such that $\tt{A}_\exists \cup \tt{A}_\top = \tt{A}$.
+And in particular, for output sets where no garbage collection is performed, we get $\tt{A}_\exists = \tt{A}$.
+
+\begin{thm}
+\label{thm:equivalence_of_sets}
+For every set $\tt{A}$, we have that $\tt{A}_{t,i} = \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.
+\end{thm}
+\begin{proof}
+We will again prove the theorem via induction.
+
+Clearly this is true for $t=i=0$.
+
+Now suppose that it is true at some $t$ and $i-1$, and we will show it holds at $t$ and $i$.
+During the instantaneous run, the only rules that we are concerned with are merges where $\tt{A}$ appears on the LHS.
+If the rule is of the form $\tt{A} ~\tt{<=}~ \overline{\tt{C}}$ with a channel on the RHS, then
+\begin{align*}
+\tt{A}_{t,i}
+= \tt{A}_{t,i-1} \cup \overline{\tt{C}}_{t}
+= \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \overline{\tt{C}}_{t}
+= \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}.
+\end{align*}
+If the merge rule is of the form $\tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{C}_1,\dots,\tt{C}_n\tt{)}$, then
+\begin{align*}
+\tt{A}_{t,i}
+&= \tt{A}_{t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,t,i-1},\dots,\tt{C}_{n,t,i-1}\tt{)}\\
+&= \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1}\cup\tt{C}_{1,\top,t},\dots,\tt{C}_{n,\exists,t,i-1}\cup\tt{C}_{n,\top,t}\tt{)}\\
+&= \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t},
+\end{align*}
+where we used the inductive hypothesis in the second equality.
+
+Suppose $\mathfrak{P}$ reaches a fixed point for time $t$ at $i=\iota$.
+We will next show that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
+We must first establish that the rewritten program will reach a fixed point for timestep $t$.
+
+\begin{claim}
+If $\mathfrak{P}$ reaches a fixed point at $t$, $\mathfrak{P}_{GC}$ also reaches a fixed point.
+(This statement should be made more formal.)
+\end{claim}
+\begin{claimproof}
+From the previous argument, we know that $\tt{A}_{\exists,t,j} \cup \tt{A}_{\top,t,i} = \tt{A}_{t,j}$ for all $j \geq \iota$.
+But $\tt{A}_{t,j} = \tt{A}_{t,\iota}$ and $\tt{A}_{\top,t,i} = \tt{A}_{\top,t,0}$ are constant independent of $j$, which implies $\tt{A}_{\exists,t,j} = \tt{A}_{\exists,t,\iota}$.
+Hence, $\mathfrak{P}_{GC}$ also reaches at fixed point at $t$, $i=\iota$.
+\end{claimproof}
+
+Finally, suppose we have $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle ~\tt{<+}~ \tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
+Then,
+\begin{align*}
+&\tt{A}_{t,0}\\
+=& \tt{A}_{t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,t-1,\iota},\dots,\tt{C}_{j,n_j,t-1,\iota}\tt{)}\\
+=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+\cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
+=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+\cup \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*
+\cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
+=& \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}.
+\end{align*}
+Thus, we have established that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
+\end{proof}
+
+For output sets, we never perform garbage collection, and hence always have equivalence of the sets in $\mathfrak{P}$ and $\mathfrak{P}_{GC}$.
+The below corollary formally states this.
+\begin{cor}
+\label{cor:equivalence_of_output}
+If a set $\tt{A}$ is an output set, it has $\tt{A}_{\top,t} = \emptyset$, and hence $\tt{A}_{t,i} = \tt{A}_{\exists,t,i}$.
+\end{cor}
+
+
+
+\subsubsection{Coordination-freeness}
+
+\begin{thm}
+\label{thm:coord-free}
+$\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$.
+If $\mathfrak{P}$ is confluent in all tables, then $\mathfrak{P}_{GC}$ is also confluent in all tables.
+In particular, if all functions $\tt{f}$'s are monotone, then $\mathfrak{P}$ is expressed in monotone Bloom, $\mathfrak{P}_{GC}$ is expressed in monotone Bloom$^L$, and both $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ are confluent.
+\end{thm}
+\begin{rmk}
+This is a stronger but different statement than Theorem \ref{thm:equivalence_of_sets} and Corollary \ref{cor:equivalence_of_output}.
+In particular, it says that every run of $\mathfrak{P}_{GC}$ produces the same $\tt{A}_\exists$ and $\tt{A}_\top$.
+As we will see later, this is not the case for the instantiated program $\mathfrak{P}_{iGC}$.
+\end{rmk}
+\begin{proof}
+Rules in $\mathfrak{P}$ either correspond to rules in $\mathfrak{P}$, or are new garbage collection rules.
+In the first case, we replace the rule $R: \tt{B} ~\tt{<op>}~ \tt{f}(\tt{A}_1,\dots,\tt{A}_n\tt{)}$ with $(\tt{B}_\exists, \tt{B}_\top) ~\tt{<op>}~ (\tt{f}(\tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists} \cup \tt{A}_{n,\top} \tt{)}$, which requires a mapping $(\tt{X}_\exists, \tt{X}_\top) \mapsto \tt{X}_\exists \cup \tt{X}_\top$ and the projection $\tt{X} \mapsto (\tt{X}, \emptyset)$, both of which are monotone.
+Hence, the corresponding rule in $\mathfrak{P}$ is monotone if $\tt{f}$ is monotone.
+In the second case, our $\tt{GC}$ rules are monotone, and involve a deferred merge, and thus do not require additional coordination.
+
+Suppose $\mathfrak{P}$ is confluent in all sets.
+Theorem \ref{thm:equivalence_of_sets} implies $\tt{A}_{\exists} \cup \tt{A}_\top = \tt{A}$ is confluent in $\mathfrak{P}_{GC}$.
+The only rules in $\mathfrak{P}_{GC}$ that promote tuples from $\exists$ to $\top$ are GC rules; since these rules are monotone, the tombstone lattices are also confluent.
+\end{proof}
+
+\begin{cor}
+\label{cor:confluence_of_output}
+If $\tt{A}$ is an output set, and $\mathfrak{P}$ is confluent, then every run of $\mathfrak{P}_{GC}$ produces $\tt{A}_\exists = \tt{A}$.
+\end{cor}
+
+% Our stated goal was to reconcile garbage collection with CALM consistency.
+% The astute read might have noticed that we have sneaked in a non-monotone function in \eqref{eq:aexistmerge} to project $(\tt{A}_\exists, \tt{A}_\top)$ to $(\tt{A}_\exists, \emptyset)$, and thus $\mathfrak{P}_{GC}$ is not expressed in monotone Bloom$^L$ or stratified Bloom$^L$.
+% Indeed, while Corollary \ref{cor:equivalence_of_output} and \ref{cor:confluence_of_output} state our output sets are confluent in $\mathfrak{P}_{GC}$, non-output sets \emph{may not} be confluent in $\mathfrak{P}_{GC}$.
+% In particular, different runs (with different message-time assignments) can result in a different partitioning of a non-output $\tt{A}$ into $\tt{A}_\exists$ and $\tt{A}_\top$.
+
+% However, a close examination of the analysis of \cite{marczak2012confluence} (and of our Bloom$^L$ formalism writeup) would reveal that while all lattices are confluent in any monotone Bloom$^L$ program, it is not necessarily the case that no lattices are confluent in a non-monotone Bloom$^L$ program.
+% Our GC program $\mathfrak{P}_{GC}$ is exactly an example of a program confluent in some sets and expressed in non-monotone Bloom$^L$.
+
+% In fact, both \cite{ameloot2013relational} and \cite{marczak2012confluence} defined ``confluence'' or ``eventual consistency'' in terms of output sets, and allowed for non-output sets that are possibly not eventually consistent.
+% Dedalus$^+$ and monotone Bloom$^L$ restrict the programming language such that \emph{every} derived fact is provably eventually always true.
+% We instead use the GC Invariant \ref{inv:merge_gc} to ensure that output sets are eventually always true (as long as $\mathfrak{P}$ is itself confluent), while allowing for non-output sets to be non-confluent.
+
+% In the CALM analysis (refer to our transducer writeup), ``coordination'' is required if and only if a query can only be computed after establishing the completeness of its input, which is exactly the case for non-monotone queries.
+% Although we have introduced a non-monotone projection, the GC invariance asserts that downstream computations are consistent regardless of future input.
+% In other words, the GC invariance states that outputs can be computed without knowledge of input completeness!
+
+

@@ -1,0 +1,168 @@
+%!TEX root = bloom_logical.tex
+
+\section{Preliminaries}
+\label{sec:prelims}
+\subsection{CALM}
+
+\subsection{Dedalus, Bloom, Edelweiss}
+Dedalus is a spatio-temporal Datalog language, with the following types of rules.
+\begin{enumerate}
+\item \emph{Deductive} rules are rules which are local in space and time:
+  \[\tt{p(}\overline{\tt{W}}\tt{)} ~\leftarrow~ \tt{b}_1\tt{(}\overline{\tt{X}}_1\tt{)}, \dots, \tt{b}_m\tt{(}\overline{\tt{X}}_m\tt{)}, \neg\tt{c}_1\tt{(}\overline{\tt{Y}}_1\tt{)}, \dots, \neg\tt{c}_n\tt{(}\overline{\tt{Y}}_n\tt{)}.\]
+\item \emph{Inductive} rules are local in space and but take place at the next time step:
+  \[\tt{p(}\overline{\tt{W}}\tt{)@next} ~\leftarrow~ \tt{b}_1\tt{(}\overline{\tt{X}}_1\tt{)}, \dots, \tt{b}_m\tt{(}\overline{\tt{X}}_m\tt{)}, \neg\tt{c}_1\tt{(}\overline{\tt{Y}}_1\tt{)}, \dots, \neg\tt{c}_n\tt{(}\overline{\tt{Y}}_n\tt{)}.\]
+\item \emph{Asynchronous} rules are derivations occurring at an unspecified future time, at possibly different nodes:
+  \[\tt{p(\#D,}\overline{\tt{W}}\tt{)@async} ~\leftarrow~ \tt{b}_1\tt{(\#S,}\overline{\tt{X}}_1\tt{)}, \dots, \tt{b}_m\tt{(\#S,}\overline{\tt{X}}_m\tt{)}, \neg\tt{c}_1\tt{(\#S,}\overline{\tt{Y}}_1\tt{)}, \dots, \neg\tt{c}_n\tt{(\#S,}\overline{\tt{Y}}_n\tt{)},\]
+indicates a derivation at node $\tt{D}$ caused by node $\tt{S}$.
+\end{enumerate}
+
+Bloom statements are of the form \textit{<collection-variable> <op> <collection-expression>}, where $op$ is one of the following:
+\begin{enumerate}
+\item $\tt{<=}$ merge: LHS includes content of RHS in the current timestep
+\item $\tt{<+}$ deferred merge: LHS includes content of RHS in the next timestep
+\item $\tt{<-}$ deferred delete: LHS will not include content of RHS in the next timestep
+\item $\tt{<}\sim$ async merge: (Remote) LHS will include content of RHS in some non-deterministic future timestep
+\end{enumerate}
+The Bloom rules correspond to Dedalus rules: merges are deductive, deferred merges and deletes are inductive, and asynchronous merges are asynchronous Dedalus rules.
+For example, the Bloom statement $\tt{P <= join [B, C], [B.key1, C.key2]}$ corresponds to the Dedalus rule $\tt{p(key,}\overline{\tt{X}}\tt{,}\overline{\tt{Y}}\tt{)}$ $~\leftarrow~$ $\tt{b(key,}\overline{\tt{X}}\tt{),$ $c(key,}\overline{\tt{Y}}\tt{)}$\footnote{Is this correct Dedalus?}.
+
+We observe that the expression $\tt{join [B, C], [B.key1, C.key2]}$ is really a function of $\tt{B}$ and $\tt{C}$, and we could replace it with some $\tt{f(B,C)}$.
+In the sequel, we will use this functional notation for ease of exposition; however, the reader should keep in mind that underlying the notation is a Bloom / Dedalus / Datalog rule defining derivation of tuples.
+
+(Also need to talk about tables, scratches, and channels.)
+
+Edelweiss restricted Bloom to a sublanguage that omits primitives for mutating or deleting data:
+\begin{enumerate}
+\item Deletion rules ($\tt{<-}$) cannot be used.
+\item Channel messages are stored persistently. That is, the LHS of a rule that reads messages from a channel must be persistent.
+\item Channels are derived from persistent collections. That is, if a channel appears on the LHS of a rule, the rule's RHS must consist of monotone operators over persistent collections.
+\end{enumerate}
+
+Bloom$^L$ extends Bloom to support lattices and merge ($\tt{<=}$) and deferred merge ($\tt{<+}$) operations on lattices.
+While our original program will be in Bloom, our rewritten GC program will be in  Bloom$^L$.
+
+
+\subsection{Lattices: Tombstones and Products}
+% Promote everything to tombstone sets, and make state a product lattice.
+% Any sub-vector of the product lattice is itself a lattice; we can define join and meet on the sub-lattice to mean operations on full product lattice.
+A bounded join semilattice $\mathcal{L}$ is a triple $(S, \cup, \bot)$ where $S$ is a set, $\cup$ is a binary, associative, commutative, and idempotent operator, and $\bot \in S$ is a least element such that $\forall s \in S: s \cup \bot = s$.
+The operator $\cup$ produces a partial order on $S$; we say that $s \leq t$ if $s \cup t = t$.
+For convenience, we will often refer to the elements of $\mathcal{L}$ themselves as the `lattice'.
+
+For our purposes of garbage collection, we will sometimes define a binary difference operator $-$, with the requirement that $s - \bot = s$ for all $s \in \mathcal{S}$.
+
+
+\subsubsection{Product lattices}
+Given $L$ lattices $\mathcal{L}_i = (S_i, \cup_i, \bot_i)$ for $i = 1, \dots, L$, we define the product lattice $\mathcal{L}_\times = \left(S_1 \times \dots \times S_L, \cup_\times, \bot_\times\right)$, where $\langle s_1, \dots, s_L \rangle \cup_\times \langle t_1, \dots, t_L \rangle = \langle s_1 \cup_1 t_1, \dots, s_L \cup_L t_L \rangle$ and $\bot_\times = \langle \bot_1, \dots, \bot_L \rangle$.
+Conversely, given a product lattice $\mathcal{L}_\times$ and a subset $V =\{v_1, \dots, v_n\} \subseteq \{1, \dots, L\}$, we can define a sub-product lattice $\mathcal{L}_V = (S_{v_1} \times \dots S_{v_n}, \cup_V, \bot_V)$ with the obvious join $\cup_V$ and least element $\bot_V$.
+Given two elements $\langle s_{v_1}, \dots, s_{v_n}\rangle \in \mathcal{L}_V$ and $\langle t_{u_1}, \dots, t_{u_m}\rangle \in \mathcal{L}_U$ in two lattices $\mathcal{L}_V$ and $\mathcal{L}_U$ such that $V \subseteq \{1,\dots,L\}$ and $U \subseteq \{1,\dots,L\}$, we define their merge as
+$\langle s_{v_1}, \dots, s_{v_n}\rangle \cup \langle t_{u_1}, \dots, t_{u_m}\rangle = \langle x_{v,1}, \dots, x_{v,L} \rangle \cup_\times \langle y_{u,1}, \dots, y_{u,L} \rangle$,
+where $x_{v,i} = s_i$ if $i \in V$ and $x_{v,i} = \bot_i$ otherwise, and analogously for $t$ and $y$.
+
+If differences are defined for each lattice $\mathcal{L}_i$, then we can also define a difference operator for $\mathcal{L}_\times$ and on the lattices $\mathcal{L}_U$, $\mathcal{L}_V$ in the same way as we had for $\cup$.
+
+Product lattices gives us a convenient way of composing multiple lattices so that we may operate on them together.
+This will be particular handy when we garbage collect from across multiple sets simultaneously.
+
+
+\subsubsection{Tombstone lattices}
+\textbf{Lattices for logical rewrite $\mathfrak{P}_{GC}$:}
+Our main algebraic tool for the logical rewrite is the \emph{tombstone lattice}:
+given a table $\tt{A}$ in our program, we lift it to a 3-phase lattice $\tt{A}_{TS} = (\tt{A}_\exists, \tt{A}_\top)$ endowed with an additional `tombstone' state $\top$.
+Intuitively, tuples marked as tombstoned are those that can be safely reclaimed without affecting computation or confluence.
+We will maintain $\tt{A}_\exists \cap \tt{A}_\top = \emptyset$.
+The join operator for tombstone lattices is defined as:
+\begin{align*}
+\tt{A}_{TS} \cup \tt{B}_{TS} = (\tt{A}_\exists, \tt{A}_\top) \cup (\tt{B}_\exists, \tt{B}_\top) = ((\tt{A}_\exists \cup \tt{B}_\exists) - (\tt{A}_\top \cup \tt{B}_\top), \tt{A}_\top \cup \tt{B}_\top).
+\end{align*}
+It is easy to verify that the merge is associative, commutative and idempotent.
+The least element is simply the empty set $(\emptyset, \emptyset)$.
+
+We will also have unique keys for some tables, which we denote as $\tt{A}_!$ or $\pi_!(\tt{A})$, the projection of $\tt{A}$ onto the unique keys.
+The keys $\tt{A}_!$ can be kept as part of the lattice, which is now augmented to $(\tt{A}_\exists, \tt{A}_\top, \tt{A}_!)$, with the requirement that $\tt{A}_! = \pi_!(\tt{A}_\exists \cup \tt{A}_\top)$.
+In an abuse of notation, we will sometimes use $\tt{A}_!$ to refer to the tuples $(\tt{A}_\exists \cup \tt{A}_\top)$ instead of keys $\pi_!(\tt{A}_\exists \cup \tt{A}_\top)$ of the table.
+The join on this lattice is defined by
+\begin{align*}
+(\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) \cup (\tt{B}_\exists, \tt{B}_\top, \tt{B}_!) \quad=\quad ((\tt{A}_\exists \cup \tt{B}_\exists) - (\tt{A}_! \cup \tt{B}_!), \tt{A}_\top \cup \tt{B}_\top, \tt{A}_! \cup \tt{B}_!).
+\end{align*}
+Note that $\tt{A}_!$ is a redundant representation if $\tt{A}_\exists$ and $\tt{A}_\top$ are provided.
+Hence, in the logical garbage collection program $\mathfrak{P}_{GC}$ defined in Section \ref{sec:logical}, we will omit the use of $\tt{A}_!$.
+
+\textbf{Lattices for logical rewrite $\mathfrak{P}_{GC}$:}
+The above representation requires storage for tombstoned tuples in $\tt{A}_\top$, and does not enable any real storage reclamation.
+In our instantiated program $\mathfrak{P}_{iGC}$ defined in Section \ref{sec:instantiated}, we will use compressed representations where we drop some or all of $\tt{A}_\top$.
+We keep instantiated tuples $\tt{A}_I$ instead of $(\tt{A}_\exists, \tt{A}_\top)$; in Section \ref{sec:instantiated} we will show $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$.
+
+If primary keys are not available, or if we choose not to instantiate and keep them, we will call $\tt{A}_I$ the \emph{non-augmented} representation.
+Otherwise, if primary keys are available and we choose to keep them, we will call $\tt{A}_E = (\tt{A}_I, \tt{A}_!)$ the \emph{key-augmented} representation.
+The obvious join for this lattice is
+\begin{align*}
+\tt{A}_E \cup \tt{B}_E \quad=\quad (\tt{A}_I, \tt{A}_!) \cup (\tt{B}_I, \tt{B}_!) \quad=\quad ((\tt{A}_I \cup \tt{B}_I) - (\tt{A}_! \cup \tt{B}_!), \tt{A}_! \cup \tt{B}_!).
+\end{align*}
+We also define the difference operator
+% \footnote{In the sequel, we will only use differences on $\tt{A}$ and $\tt{A}_E$}
+as
+\begin{align*}
+% \tt{A}_{TS} - \tt{B}_{TS} &\quad=\quad (\tt{A}_\exists - (\tt{B}_\exists \cup \tt{B}_\top), \tt{A}_\top \cup \tt{B}_\exists \cup \tt{B}_\top) &&\quad=\quad \tt{A}_{TS} \cup (\emptyset, \tt{B}_\exists \cup \tt{B}_\top),\\
+% (\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) - (\tt{B}_\exists, \tt{B}_\top, \tt{B}_!) &\quad=\quad (\tt{A}_\exists - \tt{B}_!, \tt{A}_\top \cup \tt{B}_\exists \cup \tt{B}_\top, \tt{A}_! \cup \tt{B}_!) &&\quad=\quad (\tt{A}_\exists, \tt{A}_\top, \tt{A}_!) \cup (\emptyset, \tt{B}_\exists \cup \tt{B}_\top, \tt{B}_!),\\
+\tt{A}_E - \tt{B}_E &\quad=\quad (\tt{A}_\exists - \tt{B}_!, \tt{A}_! \cup \tt{B}_!) &&\quad=\quad \tt{A}_E \cup (\emptyset, \tt{B}_!).
+\end{align*}
+% In all cases, the difference promotes all tuples in the second operand to the tombstone state.
+That is, the difference deletes all tuples in the second operand $\tt{B}_E$ from the first operand $\tt{A}_E$.
+
+
+\subsection{Bloom$^L$ Execution}
+\label{sec:prelims:exec}
+(Using formalism and definitions of Bloom$^L$ writeup..)
+
+A Bloom$^L$ \emph{program} is a set $\{\mathfrak{P}_v ~:~ v \in V\}$ for some finite $V$, where each $\mathfrak{P}_v$ is itself a finite collection of rules.
+A message-time assignment $\tau$ is a function taking $(R_i, v, t, v')$, with $R_i \in \mathfrak{P}_v$ asynchronous merge rule, and returning $\tau(R_i, v, t, v') = t'$.
+Intuitively, this indicates that the message sent from node $v$ at time $t$ due to asynchronous merge rule $R_i$ will arrive at the destination node $v'$ at time $t'$.
+The message-time assignment $\tau$ is \emph{causally plausible} if it obeys causality, i.e., there is no sequence $(R_1, v_1, t_1, v'_1), \dots, (R_n, v_n, t_n, v'_n)$ such that $v_k = v'_{k-1}$, and $\tau(R_k, v_k, t_k, v'_k) \leq t_{k+1}$, but also $v'_n = v_1$ and $t_1 \geq \tau(R_n, v_n, t_n, v_n)$.
+Note that a causally plausible $\tau$ induces a (partial) ordering on the node-timestamp space: $(v,t) <_\tau (v',t')$ if either $\exists R \in \mathfrak{P}_v$ such that $\tau(R,v,t,v') \leq t'$, or $\exists v'', t''$ such that $(v,t) \leq_\tau (v'', t'')$ and $(v'', t'') <_\tau (v',t')$.
+Intuitively, $(v,t) <_\tau (v',t')$ if there is a sequence of messages that allows us to go from $(v,t)$ to $(v',t')$.
+For a causally plausible $\tau$, we cannot have $(v,t) <_\tau (v',t')$ and also $(v',t') <_\tau (v,t)$, as that would violate the causal plausibility of $\tau$.
+
+Operationally, for each rule $R_i$, node $v$, and time $t$, we associate an operator $T_{i,v,t}(\mathcal{E}, I) := (\mathcal{E}, I')$:
+\begin{enumerate}
+\item\emph{Merge:} $I'(\tt{B}@(v,t)) ~=~ I(\tt{B}@(v,t)) ~\sqcup~ \tt{f(}I(\tt{A}_1@(v,t)),\dots,I(\tt{A}_k@(v,t))\tt{)}$.
+\item\emph{Deferred Delete:} Deferred merges and deletes are treated together.
+Suppose $\tt{B}$ appears on the LHS for statements
+\begin{align*}
+\tt{B} &\quad\tt{<+}\quad \tt{f(}\tt{A}_{11},\dots,\tt{A}_{1k_1}\tt{)}\\
+&\quad\vdots\\
+\tt{B} &\quad\tt{<+}\quad \tt{f(}\tt{A}_{n1},\dots,\tt{A}_{nk_n}\tt{)}\\
+\tt{B} &\quad\tt{<-}\quad \tt{f(}\tt{C}_{11},\dots,\tt{C}_{1l_1}\tt{)}\\
+&\quad\vdots\\
+\tt{B} &\quad\tt{<-}\quad \tt{f(}\tt{C}_{m1},\dots,\tt{C}_{ml_m}\tt{)}
+\end{align*}
+Then the corresponding operator is
+\begin{align*}
+I'(\tt{B}@(v,t+1)) ~=~ I(\tt{B}@(v,t+1)) ~\sqcup~ \Bigg(
+&\bigsqcup_{i=1}^n \tt{f(}I(\tt{A}_{i1}@(v,t)),\dots,I(\tt{A}_{ik_i}@(v,t))\tt{)}\\
+&~-~
+\bigsqcup_{i=1}^n \tt{f(}I(\tt{C}_{i1}@(v,t)),\dots,I(\tt{C}_{il_i}@(v,t))\tt{)}
+\Bigg)
+\end{align*}
+\item\emph{Asynchronous Merge:} $I'(\tt{chn}@(v',t')) ~=~ I(\tt{chn}@(v',t')) ~\sqcup~ \tt{f}_{v'}\tt{(}I(\tt{A}_1@(v,t)),\dots,I(\tt{A}_k@(v,t))\tt{)}$, where $t' = \tau(R_i, v, t, v')$.
+\end{enumerate}
+For simplicity, we assume that each relation $\tt{A}$ is spatially unique, i.e., there exists only one $v$ for which $\tt{A}@v$ is instantiated, and thus drop the node specifier when it is obvious from context.
+We similarly assume that channels are one-to-one, and omit the destination node specifier.
+
+An instantaneous run $\phi$ is a successive application of merge ($\tt{<=}$) operators $T_{\phi(1),v,t}, T_{\phi(2),v,t}, \dots$ to some initial condition $(\mathcal{E}, I)$.
+A between-instants run $\psi$ is a successive application of asynchronous merge ($\tt{<}\sim$), and deferred merge and delete ($\tt{<+}$ and $\tt{<-}$) operators $T_{\psi(1),v,t}, T_{\psi(2),v,t}, \dots$ to some initial condition $(\mathcal{E}, I)$.
+Observe that a between-instants run always reaches the same fixed point for a given initial condition $(\mathcal{E}, I)$, since its operators are dependent only on relations at $(v,t)$, but make modifications to relations at $(v,t+1)$ or some $(v',t') >_\tau (v,t)$.
+
+A run $\Phi$ is a sequence of runs $\phi_{v_1,t_1}, \psi_{v_1,t_1},, \phi_{v_2,t_2}, \psi_{v_2,t_2}, \dots$ such that $\forall (v_i, t_i), \forall (v, t) <_\tau (v_i, t_i), \exists j < i: (v, t) = (v_j, t_j)$, that is, every $(v,t)$ that is $\tau$-less than $(v_i, t_i)$ must be run before $(v,t)$.
+Furthermore, $\phi_{v_1, t_1}$ is applied with the initial conditions $(\mathcal{E}, I_\emptyset)$, and $\psi_{v_k,t_k}$ is applied to the fixed point of $\phi_{v_k, t_k}$, and $\phi(v_{k+1}, t_{k+1})$ is applied to the fixed point of $\psi_{v_k, t_k}$ as the initial conditions.
+This is only well defined for $\psi_{v_k, t_k}$ and $\phi_{v_{k+1}, t_{k+1}}$ when $\phi_{v_{k'}, t_{k'}}$ has a fixed point for all $k' \leq k$.
+We also point out that by definition of the operators, an instantaneous run $\psi_{v_k,t_k}$ and $\phi_{v_{k+1},t_{k+1}}$ cannot affect any relation $\tt{B}@(v',t')$ if $(v',t') \leq_\tau (v_k,t_k)$;
+hence, the relation $\tt{B}@(v',t')$ remains unchanged after we terminate $\phi_{v',t'}$.
+% We denote the assignment obtained after applying $T_{\pi_{v,t}(i),v,t}$ as $I^{\Pi_\tau}_{v,t,i}$;
+% if $\pi_{v,t}$ terminates, we denote the fixed point as $I^{\Pi_\tau}_{v,t}$.
+
+We assume that every instantaneous run $\phi_{v,t}$ terminates, for otherwise our Bloom$^L$ program does not halt.
+
+Let $I^\Phi_{v,t,i}$ be the assignment obtained after applying $T_{\phi_{v,t}(i),v,t}$, and $I^\Phi_{v,t+1,0}$ be the assignment obtained after applying $\psi_{v,t}$.
+We will most often be interested in the assignment to lattices at $(v,t)$ after partially applying $\phi_{v,t}$ and $\psi_{v,t}$;
+for simplicity, we will write $\tt{A}_{t,i} = I^\Phi_{v,t,i}(\tt{A}@(v,t))$ and $\tt{A}_{t} = \tt{A}_{t,0} = I^\Phi_{v,t,0}(\tt{A}@(v,t))$.

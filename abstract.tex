@@ -1,0 +1,25 @@
+%!TEX root = bloom_logical.tex
+
+\begin{abstract}
+The CALM theorem \cite{hellerstein2010declarative, ameloot2013relational} states that coordination-free programs are exactly monotonic queries.
+Informally, a ``coordination'' is communication whose purpose is to detect or discover the completeness of input.
+A coordination-free program may require other forms of communications, but can always generate partial output corresponding to any partial input, without the need for future retraction.
+Conversely, a program that is not coordination-free requires the knowledge of input completeness in order to generate output that it will not later retract, and therefore cannot generate the correct answer until the full input is given.
+
+Bloom \cite{alvaro2011consistency} is a programming model that encapsulates this philosophy by enabling high-level consistency analysis, which identify rules and cycles of non-monotonicity as points of order necessitating coordination.
+
+To sidestep challenges in distributed consistency, practitioners and academics have resorted to writing systems with immutable states, a model which has been termed Event Log Exchange (ELE).
+Edelweiss \cite{conway2014edelweiss} specializes Bloom to a sublanguage that omits primitives for mutating or deleting data, with the specific application of event log exchanges (ELE) programs in mind.
+ELE programs written with immutable data are immediately monotone, and thus coordination-free.
+
+While the ELE programming paradigm simplifies distributed programming, it results in unbounded storage growth.
+Edelweiss combats this through automatic garbage that discards useless data and reclaims storage.
+Unfortunately, the opportunities for storage reclamation identified in \cite{conway2014edelweiss} largely exploit non-monotonic operations such as set negation.
+This runs counter to the original motivation for immutability, namely, to write monotone and therefore coordination-free programs.
+
+In this work, we harmonize the notion of CALM consistency with ELE.
+The intuitions behind our approach are (i) data that does not affect future computation can be safely reclaimed, and (ii) garbage collection does not affect the monotonicity of the output and coordination-freeness of the program.
+We define properties of valid GC rules according to these intuitions, and provide an analysis of garbage collection.
+We prove that our automated garbage collection is monotone (output always increases) and coordination-free (no additional inter-node points of order) whenever the original program is monotone.
+\end{abstract}
+

@@ -1,0 +1,46 @@
+%!TEX root = bloom_logical.tex
+
+\section{Introduction}
+\label{sec:intro}
+
+\subsection{Approach}
+Our approach in this paper proceeds in two phases.
+In the first, we are given an Edelweiss program $\mathfrak{P}$, and produce a program rewrite $\mathfrak{P}_{GC}$.
+Key to the rewrite are `tombstone sets', which are sets in which some tuples are marked as `tombstoned'.
+\emph{Logical garbage collection} rules are added to $\mathfrak{P}_{GC}$ to tombstone tuples that could potentially be reclaimed.
+Under some intuitive and natural constraints on the logical garbage collection rules, we show that the resultant program $\mathfrak{P}_{GC}$ is correct, in the sense that the output of $\mathfrak{P}$ is recoverable from $\mathfrak{P}_{GC}$.
+We also show that $\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$;
+in particular, if $\mathfrak{P}$ is monotone and coordination-free, then $\mathfrak{P}_{GC}$ is also monotone and coordination-free.
+
+Unfortunately, $\mathfrak{P}_{GC}$ does not provide any actual storage reclamation.
+To do this, we perform a second rewrite of $\mathfrak{P}_{GC}$ to an \emph{instantiated GC program} $\mathfrak{P}_{GC}$ where deletions are instantiated.
+Unlike $\mathfrak{P}_{GC}$ which operates on tombstone sets, $\mathfrak{P}_{iGC}$ operates on either ordinary sets or sets augmented with primary keys --- we elaborate on this in the following Section \ref{sec:intro:approach:augment}.
+Instantiated garbage collection rules in $\mathfrak{P}_{iGC}$ are consistent with the corresponding garbage collection rules of $\mathfrak{P}_{GC}$, that is, we only reclaim in $\mathfrak{P}_{iGC}$ tuples that are tombstoned in $\mathfrak{P}_{GC}$.
+This consistency, together with the correctness of the logical rewrite $\mathfrak{P}_{GC}$, implies that $\mathfrak{P}_{iGC}$ also produces the correct output without the need for extra coordination.
+
+\subsubsection{Augmenting with primary keys}
+\label{sec:intro:approach:augment}
+If a set $\tt{A}$ in $\mathfrak{P}$ has primary keys $\tt{A}_!$, we may choose to keep the primary keys in $\mathfrak{P}_{iGC}$ with a small storage overhead even as we keep a subset $\tt{A}_I \subseteq \tt{A}$.
+In that case, we call the pair $\tt{A}_E = (\tt{A}_I, \tt{A}_!)$ a \emph{key-augmented set};
+conversely, if primary keys are not available or if we choose not to keep them, we will call $\tt{A}_I$ a \emph{non-augmented set}.
+
+The choice of representation to use is determined by the instantiated garbage collection rule for $\tt{A}$ in $\mathfrak{P}_{iGC}$.
+For some instantiated garbage collection rules, the primary keys can provide additional information about tuples that have been reclaimed, and allow us to garbage collect more efficiently;
+in such cases, we will use the key-augmented representation.
+The non-augmented representation is used if the primary keys are not available, or not needed by the instantiated garbage collection rule.
+
+Moreover, in a slight abuse of definitions, whenever a set $\tt{A}$ has a key-augmented representation $\tt{A}_E$ in $\mathfrak{P}_{iGC}$, we will also call $\tt{A}$ in $\mathfrak{P}$ and the corresponding tombstone set $\tt{A}_{TS}$ in $\mathfrak{P}_{GC}$ as key-augmented sets.
+Similarly, if we use a non-augmented representation $\tt{A}_I$ in $\mathfrak{P}_{iGC}$, we will also call $\tt{A}$ and $\tt{A}_{TS}$ as non-augmented sets.
+Note that there are no differences between the representations of non-augmented and key-augmented sets in $\mathfrak{P}$ and $\mathfrak{P}_{GC}$;
+the naming convention is used only to highlight the representational differences in $\mathfrak{P}_{iGC}$.
+
+
+
+\subsection{Organization}
+The remainder of this paper is organized as follows.
+In Section \ref{sec:prelims}, we present some preliminaries and notations that will be used in later sections.
+Section \ref{sec:logical} presents and discusses properties of the logical rewrite program $\mathfrak{P}_{GC}$;
+the instantiated rewrite $\mathfrak{P}_{iGC}$ is presented in Section \ref{sec:instantiated}.
+For clarity of exposition, we leave the garbage collection for asynchronous rules (sending messages between nodes) to Section \ref{sec:async_gc}.
+We conclude in Section \ref{sec:conclude}.
+

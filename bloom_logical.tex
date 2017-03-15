@@ -1,0 +1,87 @@
+\documentclass{article}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+%% Sets page size and margins
+\usepackage[top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{amsthm}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  mathescape
+}
+
+\numberwithin{equation}{section}
+
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{thm}[theorem]{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{cor}[theorem]{Corollary}
+\newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{conj}[theorem]{Conjecture}
+
+\newtheorem{defn}{Definition}[section]
+
+\newtheorem{rmk}{Remark}[section]
+\newtheorem{example}{Example}[section]
+
+\newtheorem{property}{Property}[section]
+\newtheorem{invariant}[property]{Invariant}
+\newtheorem{assumption}[property]{Assumption}
+
+\newenvironment{claim}[1]{\par\noindent\underline{Claim:}\space#1}{}
+\newenvironment{claimproof}[1]{\par\noindent\underline{Proof:}\space#1}{\hfill $\blacksquare$}
+
+\renewcommand{\tt}[1]{\ifmmode\text{\texttt{#1}}\else\texttt{#1}\fi}
+
+
+\title{Keep CALM and GC}
+\author{Xinghao Pan, Joseph Hellerstein}
+
+\begin{document}
+\maketitle
+
+
+\input{abstract}
+
+
+\input{intro}
+
+
+\input{prelims}
+
+
+\input{rewrites}
+
+
+\input{logical}
+
+
+\input{instantiated}
+
+
+\input{async_gc}
+
+
+\input{conclude}
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{calmbib}
+
+\end{document}

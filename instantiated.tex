@@ -1,0 +1,413 @@
+%!TEX root = bloom_logical.tex
+
+\section{Properties and Analysis of Instantiated Garbage Collection}
+\label{sec:instantiated}
+
+
+
+\subsection{Properties of Instantiated GC rules}
+\begin{property}[Instantiated GC Conservation]\label{property:instantiated_gc_conservative}
+Let $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{iGC}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
+The instantiated GC rule $\tt{iGC}$ is \emph{conservative} if $\forall \tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}$, $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,I}$ and $\tt{A}_{i,!}^- = \pi_!(\tt{A}_{i,I})$.
+\end{property}
+
+\begin{property}[Instantiated Set Consistency]
+A non-augmented set $\tt{A}_I$ in $\mathfrak{P}_{iGC}$ is \emph{weakly consistent} with $\tt{A}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{A}_{\exists,t,i} \subseteq \tt{A}_{I,t,i} \subseteq \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.
+% A non-augmented set $\tt{B}_I$ in $\mathfrak{P}_{iGC}$ is \emph{strongly consistent} with $\tt{B}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{B}_{\exists,t,i} = \tt{B}_{I,t,i}$.
+
+A key-augmented set $\tt{B}_E$ in $\mathfrak{P}_{iGC}$ is \emph{weakly consistent} with $\tt{B}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{B}_{\exists,t,i} \subseteq \tt{B}_{I,t,i} \subseteq \tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}$, and $\tt{B}_{!,t,i} = \pi_!(\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t})$.
+A key-augmented set $\tt{C}_E$ in $\mathfrak{P}_{iGC}$ is \emph{strongly consistent} with $\tt{C}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{C}_{\exists,t,i} = \tt{C}_{I,t,i}$, and $\tt{C}_{!,t,i} = \pi_!(\tt{C}_{\exists,t,i} \cup \tt{C}_{\top,t})$.
+\end{property}
+
+In general, it is not possible to have a strongly consistent non-augmented set, since the merge rule $\tt{A}_I ~\tt{<=}~ \tt{f}\tt{(}\dots\tt{)}$ could possibly merge some tuples from $\tt{A}_\top$ into $\tt{A}_I$.
+For strongly consistent key-augmented sets, this is prevented since tombstoned tuples are filtered from merging into $\tt{A}_I$ by checking against $\tt{A}_!$.
+
+\begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
+Consider a logical garbage collection rule $\tt{GC}$ that is safe for $R$, and a corresponding instantiated garbage collection rule $\tt{iGC}$.
+We say that
+$\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on a set $\tt{A}$ if it preserves weak consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$;
+$\tt{iGC}$ is \emph{strongly consistent} with $\tt{GC}$ on a set $\tt{A}$ if it preserves strong consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$.
+
+Formally, let
+\begin{align*}
+&\langle
+\tt{A}_{1,TS}^*, \dots, \tt{A}_{n_1,TS}^*,
+\tt{B}_{1,TS}^*, \dots, \tt{B}_{n_1,TS}^*, 
+\tt{C}_{1,TS}^*, \dots, \tt{C}_{n_3,TS}^*
+\rangle \\
+&= \tt{GC}(
+\tt{A}_{1,TS}, \dots, \tt{A}_{n_1,TS},
+\tt{B}_{1,TS}, \dots, \tt{B}_{n_2,TS},
+\tt{C}_{1,TS}, \dots, \tt{C}_{n_3,TS};
+\tt{D}_{1,TS}, \dots, \tt{D}_{n_4,TS},
+\tt{E}_{1,TS}, \dots, \tt{E}_{n_5,TS}
+),\\
+&\langle
+\tt{A}_{1,I}^-, \dots, \tt{A}_{n_1,I}^-,
+\tt{B}_{1,I}^-, \dots, \tt{B}_{n_1,I}^-,
+\tt{C}_{1,E}^-, \dots, \tt{C}_{n_3,E}^-
+\rangle\\
+&= \tt{iGC}(
+\tt{A}_{1,I}, \dots, \tt{A}_{n_1,I},
+\tt{B}_{1,I}, \dots, \tt{B}_{n_2,I},
+\tt{C}_{1,E}, \dots, \tt{C}_{n_3,E};
+\tt{D}_{1,E}, \dots, \tt{D}_{n_4,E},
+\tt{E}_{1,I}, \dots, \tt{E}_{n_5,I}
+).
+\end{align*}
+We say that $\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on $\tt{A}_1, \dots, \tt{A}_{n_1}, \tt{B}_1, \dots, \tt{B}_{n_2}$, and \emph{strongly consistent} with $\tt{GC}$ on $\tt{C}_1, \dots, \tt{C}_{n_3}$, if under the conditions
+\begin{enumerate}
+\item $\forall i=1,\dots,n_1$, $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$,
+\item $\forall i=1,\dots,n_2$, $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, and $\tt{B}_{i,!} = \pi_!(\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$,
+\item $\forall i=1,\dots,n_3$, $\tt{C}_{i,\exists} =         \tt{C}_{i,I}$,                                                   and $\tt{C}_{i,!} = \pi_!(\tt{C}_{i,\exists} \cup \tt{C}_{i,\top})$,
+\item $\forall i=1,\dots,n_4$, $\tt{D}_{i,\exists} \subseteq \tt{D}_{i,I} \subseteq \tt{D}_{i,\exists} \cup \tt{D}_{i,\top}$,
+\item $\forall i=1,\dots,n_5$, $\tt{E}_{i,\exists} \subseteq \tt{E}_{i,I} \subseteq \tt{E}_{i,\exists} \cup \tt{E}_{i,\top}$, and $\tt{E}_{i,!} = \pi_!(\tt{E}_{i,\exists} \cup \tt{E}_{i,\top})$,
+\item $\tt{A}_{1,TS}, \dots, \tt{A}_{n_1,TS},$ $\tt{B}_{1,TS}, \dots, \tt{B}_{n_2,TS},$ $\tt{C}_{1,TS}, \dots, \tt{C}_{n_3,TS},$ $\tt{D}_{1,TS}, \dots, \tt{D}_{n_4,TS},$ $\tt{E}_{1,TS}, \dots, \tt{E}_{n_5,TS}$ satisfy the Merge GC Invariant \ref{inv:merge_gc} for $R$.
+\end{enumerate}
+the following are true:
+\begin{enumerate}
+\item $\forall i=1,\dots,n_1$, $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$,
+\item $\forall i=1,\dots,n_2$, $\tt{B}_{i,I}^- \subseteq \tt{B}_{i,\top}^*$,
+\item $\forall i=1,\dots,n_3$, $\tt{C}_{i,I}^- =         \tt{C}_{i,\top}^*$,
+\end{enumerate}
+\end{property}
+
+
+
+% \begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
+% Suppose $\tt{GC}$ is a logical garbage collection rule safe for $R$, and that the following are true:
+% \begin{enumerate}
+% \item $\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}$, $\tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}$ satisfy the Merge GC Invariant \ref{inv:merge_gc} for $R$,
+% \item $\forall i=1,\dots,n$, if $\tt{A}_i$ has no primary keys, then $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$; otherwise, $\tt{A}_{i,\exists} = \tt{A}_{i,I}$ and $\tt{A}_{i,!} = \pi_!(\tt{A}_{i,\exists} \cup \tt{A}_{i,\top})$,
+% \item $\forall i=1,\dots,m$, if $\tt{B}_i$ has no primary keys, then $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$; otherwise, $\tt{B}_{i,\exists} = \tt{B}_{i,I}$ and $\tt{B}_{i,!} = \pi_!(\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$.
+% \end{enumerate}
+% Let $(\tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*) = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$
+% and $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-)$ $=$ $\tt{GCI}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E};$ $\tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
+% Then, $\tt{GCI}$ is \emph{consistent with} $\tt{GC}$ if $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$ if $\tt{A}_i$ does not have primary keys,
+% and 
+% $(\tt{A}_{i,!} - \tt{A}_{i,I}) \cup \tt{A}_{i,I}^- = \tt{A}_{i,\top}^*$ if $\tt{A}_i$ has primary keys.
+% \end{property}
+% In words, $\tt{GCI}$ is consistent with $\tt{GC}$ if the tuples that are deleted by $\tt{GCI}$ are a subset of the tuples tombstoned by $\tt{GC}$,
+% and in the case where primary keys are available, both $\tt{GC}$ and $\tt{GCI}$ agree on the tombstoned tuples.
+
+In other words, $\tt{iGC}$ deletes a subset of $\tt{A}$ and $\tt{B}$ tuples that $\tt{GC}$ tombstones, and $\tt{iGC}$ exactly agrees with $\tt{GC}$ on the deleted / tombstoned tuples in $\tt{C}$.
+Note that the strong consistency of $\tt{iGC}$ with $\tt{GC}$ on $\tt{C}$ does not necessary imply the corresponding weak consistency, because the strong consistency holds under the strong assumption that $\tt{C}_{i,\exists} = \tt{C}_{i,I}$ instead of the weaker assumption that $\tt{C}_{i,\exists} \subseteq \tt{C}_{i,I} \subseteq \tt{C}_{i,\exists} \cup \tt{C}_{i,\top}$.
+Conversely, the weak consistency of $\tt{iGC}$ with $\tt{GC}$ on $\tt{A}$ and $\tt{B}$ does not necessary imply the corresponding strong consistency, because weak consistency only provides the weaker result that $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$ and $\tt{B}_{i,I}^- \subseteq \tt{B}_{i,\top}^*$ instead of the stronger requirement that $\tt{A}_{i,I}^- = \tt{A}_{i,\top}^*$ and $\tt{B}_{i,I}^- = \tt{B}_{i,\top}^*$.
+
+We will require that any instantiated garbage collection rule $\tt{GCI}$ for $R$ be conservative and consistent with some logical garbage collection rule $\tt{GC}$, which is itself safe for $R$, conservative, and monotone\footnote{
+  I believe that monotonicity is required only to show $\mathfrak{P}_{GC}$ is confluent in $\tt{A}_\top$, and $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_! - \tt{A}_I$.
+}.
+
+
+
+\subsection{Examples of Instantiated GC rules}
+We now present some examples of instantiated GC rules that are consistent with the logical GC rules presented in Section \ref{sec:logical:example}.
+
+\begin{example}[Copy GC]
+$\tt{iGCCopy}(\tt{A}_I; \tt{B}_{1,I}, \dots, \tt{B}_{m,I}) = \tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}$ is weakly consistent with $\tt{GCCopy}$.
+\end{example}
+Suppose
+$\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$
+and for all $i = 1, \dots, m$:
+$\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$.
+Then,
+\begin{align*}
+\tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}
+% &
+~\subseteq~
+(\tt{A}_\exists \cup \tt{A}_\top) \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})
+% \\
+% &
+% ~=~
+% \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
+% \cup
+% \left(\tt{A}_\top \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)\\
+% &
+~\subseteq~
+\left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
+\cup
+\tt{A}_\top.
+\end{align*}
+Hence, $\tt{iGCCopy}$ is consistent with $\tt{GCCopy}$.
+
+\begin{example}[Project GC]
+$\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\}$ is weakly consistent with $\tt{GCProject}$.
+\end{example}
+
+If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
+clearly $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
+
+\begin{example}[Select GC]
+$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I)$ is weakly consistent with $\tt{GCSelect}$.
+\end{example}
+If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
+simple relational algebra demonstrates that
+$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I) \subseteq \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)) = \tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS})$.
+
+\begin{example}[Linear GC]
+$\tt{iGCAll}(\tt{A}_I; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}) = \tt{A}_I$ is strongly consistent with $\tt{GCAll}$.
+\end{example}
+
+\begin{example}[Join with punctuations]
+$\tt{iGCJoin}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},I}^-, \tt{C}_I^-, \tt{P}_{\tt{C},I}^-\rangle$, where
+\begin{align*}
+\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\}\\
+\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
+\end{align*}
+is weakly consistent with $\tt{GCJoin}$.
+\end{example}
+Proof of consistency of $\tt{iGCJoin}$ with $\tt{GCJoin}$ is straightforward\footnote{
+  We treat $\tt{P}_\tt{A}$ and $\tt{P}_\tt{C}$ as if they are tables without primary keys.
+} and thus omitted.
+As noted before, $p_a \in \tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I} \implies p_a \in \tt{P}_{\tt{A},\top} \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$, so we can also tombstone tuples whose keys match $\tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I}$:
+
+\begin{example}[Join with punctuations, version 2]
+$\tt{iGCJoinV2}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},E}^-, \tt{C}_I^-, \tt{P}_{\tt{C},E}^-\rangle$, where
+\begin{align*}
+\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\} \cup \{a \in \tt{A}_I ~:~ a.k_a \in \tt{P}_{\tt{A},!} - \pi_!(\tt{P}_{\tt{A},I})\}\\
+\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\} \cup \{c \in \tt{C}_I ~:~ c.k_c \in \tt{P}_{\tt{C},!} - \pi_!(\tt{P}_{\tt{C},I})\}\\
+\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
+\end{align*}
+is weakly consistent with $\tt{GCJoin}$.
+\end{example}
+
+
+\begin{example}[DR+: Positive Difference Reclamation]
+$\tt{iGCDR+}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{C}, \tt{C}_I\rangle$ is weakly consistent with $\tt{GCDR+}$.
+\end{example}
+
+\begin{example}[DR-: Negative Difference Reclamation]
+$\tt{iGCDR-}(\tt{A}_E, \tt{C}_I; \tt{B}_I) = \langle (\tt{A}_I \cap \tt{C}_I, \pi_!(\tt{A}_I \cap \tt{C}_I), \tt{C}_I \cap (\tt{A}_! - \tt{A}_I)\rangle$ is strongly consistent with $\tt{GCDR+}$.
+\end{example}
+Suppose $\tt{A}_{TS}$, $\tt{C}_{TS}$, $\tt{A}_E$, and $\tt{C}_I$ satisfy the conditions of Property \ref{property:instantiated_gc_consistent}.
+In particular, $\tt{A}_{TS}$ and $\tt{C}_{TS}$ satisfies Invariant \ref{inv:merge_gc}, so as previously discussed, this implies $\tt{C}_\top \subseteq \tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\exists$.
+Thus,
+\begin{align*}
+(\tt{A}_! - \tt{A}_I) \cup (\tt{A}_I \cap \tt{C}_I)
+= \tt{A}_\top \cup (\tt{A}_\exists \cap \tt{C}_\exists)
+= \tt{A}_\top \cup (\tt{A}_\exists \cap (\tt{C}_\exists \cup \tt{C}_\top))
+= \tt{A}_\top \cup ((\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top))
+\end{align*}
+which are exactly the tombstones of $\tt{GCDR-}$.
+
+
+\subsection{Correctness}
+\begin{thm}[Representation Correctness]
+\label{thm:instantiated_correctness}
+For any set $\tt{A}$, let $\tt{GC}$ be its logical GC rule in $\mathfrak{P}_{GC}$ and $\tt{iGC}$ be its instantiated GC rule in $\mathfrak{P}_{iGC}$.
+Then, it is either the case that
+\begin{enumerate}
+\item $\tt{iGC}$ is weakly consistent with $\tt{GC}$ on $\tt{A}$ and $\tt{A}_I$ (or $\tt{A}_E$) is weakly consistent with $\tt{A}_{TS}$, i.e.,
+\begin{align}
+\forall t, i: \quad \tt{A}_{\exists,t,i} \subseteq \tt{A}_{I,t,i} \subseteq \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t,i} \label{eq:thm_instantiated_correctness_set}
+\end{align}
+\item $\tt{iGC}$ is strongly consistent with $\tt{GC}$ and $\tt{A}_E$ is strongly consistent with $\tt{A}_{TS}$, i.e.,
+\begin{align}
+\forall t, i: \quad \tt{A}_{\exists,t,i} = \tt{A}_{I,t,i} \label{eq:thm_instantiated_correctness_set_strong}
+\end{align}
+\end{enumerate}
+In both cases, if $\tt{A}_E$ is key-augmented in $\mathfrak{P}_{iGC}$, then
+\begin{align}
+\forall t, i : \tt{A}_{!,t,i} = \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t,i}) \label{eq:thm_instantiated_correctness_key}.
+\end{align}
+\end{thm}
+\begin{rmk}
+An immediate consequence is that $\forall t, i: \tt{A}_{!,t,i} - \pi_!(\tt{A}_{I,t,i}) \subseteq \pi_!(\tt{A}_{\top,t,i})$ for weakly consistent $\tt{A}_E$, and $\forall t, i: \tt{A}_{!,t,i} - \pi_!(\tt{A}_{I,t,i}) = \pi_!(\tt{A}_{\top,t,i})$ for strongly consistent $\tt{A}_E$.
+\end{rmk}
+% \begin{thm}[Representation Correctness]
+% \label{thm:instantiated_correctness}
+% For any set $\tt{A}$ without primary keys in $\mathfrak{P}$ and its corresponding lattice $(\tt{A}_\exists,t, \tt{A}_\top)$ in $\mathfrak{P}_{GC}$ and set $\tt{A}_E$ in $\mathfrak{P}_{iGC}$,
+% \begin{align}
+% \tt{A}_{\exists,t,i} \subseteq &\tt{A}_{I,t,i} \subseteq \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}.\label{eq:thm_instantiated_correctness_set}
+% \end{align}
+% If $\tt{A}$ has primary keys, then
+% \begin{align}
+% \tt{A}_{I,t,i} =& \tt{A}_\exists,\label{eq:thm_instantiated_correctness_set_key}\\
+% \tt{A}_{!,t,i} =& \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}).\label{eq:thm_instantiated_correctness_key}
+% \end{align}
+% As an immediate consequence of \eqref{eq:thm_instantiated_correctness_set_key} and \eqref{eq:thm_instantiated_correctness_key}, we get $\pi_!(\tt{A}_{\top,i}) = \tt{A}_{!,t,i} - \pi_!(\tt{A}_{I,t,i})$ because $\tt{A}_{\exists,t,i} \cap \tt{A}_{\top,t} = \emptyset$
+% \end{thm}
+\begin{proof}
+We provide the proofs for weak consistency; the proofs for strong consistency follow the same approach, replacing inclusion $\subseteq$ with equality $=$ in the appropriate locations.
+Our proof proceeds by induction on $t$ and $i$.
+
+At $t=0$, $i=0$, we initialize $\tt{A}_{I,0,0} = \tt{A}_{0,0} = \tt{A}_{\exists,0,0} = \tt{A}_{\exists,0,0} \cup \tt{A}_{\top,0}$, so \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold trivially.
+
+Assume that \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold at some $t$ and $i-1$.
+The assignment at $t$, $i$ is obtained by executing some merge rule $R$ on the assignment at $t$, $i-1$.
+If $\tt{A}$ does not appear on the LHS of $R$, then we are done because $\tt{A}_{E,t,i} = \tt{A}_{E,t,i-1}$ and $\tt{A}_{TS,t,i} = \tt{A}_{TS,t,i-1}$.
+If $\tt{A}$ appears on the LHS of $R$ and the RHS is not a channel, then WLOG let $R: \tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{C}_1, \dots, \tt{C}_n\tt{)}$.
+\begin{align}
+\tt{A}_{\exists,t,i}
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)}) - \tt{A}_{\top,t}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,I,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)} \cup \tt{A}_{\top,t}) - \tt{A}_{\top,t}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)} \cup \tt{A}_{\top,t}) - \tt{A}_{\top,t} & \text{(Lemma \ref{lem:merge_gc_inv})}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - \tt{A}_{\top,t}.\label{eq:thm:ins_correct:instant}
+\end{align}
+If $\tt{A}$ is non-augmented, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+&&\subseteq&& \tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}
+&&=&& \tt{A}_{I,t,i}.
+\end{align*}
+If $\tt{A}$ is key-augmented, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+&&\subseteq&& (\tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - (\tt{A}_{!,t,i-1} - \tt{A}_{I,t,i-1})
+&&=&& \tt{A}_{I,t,i}.
+\end{align*}
+In both cases, we see that
+\begin{align*}
+\tt{A}_{I,t,i}
+\subseteq& \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}\\
+=& \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)} & \text{(Lemma \ref{lem:merge_gc_inv})}\\
+=& \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}
+\end{align*}
+For key-augmented $\tt{A}$, we also have
+\begin{align*}
+\tt{A}_{!,t,i}
+&= \tt{A}_{!,t,i-1} \cup \pi_!(\tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t}) \cup \pi_!(\tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)}) & \text{(Lemma \ref{lem:merge_gc_inv})}\\
+&= \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}).
+\end{align*}
+Otherwise, $\tt{A}$ appears on the LHS of $R$ and the RHS of $R$ is a channel $\overline{\tt{C}}$.
+The argument above goes through by replacing $\tt{f}$ with $\overline{\tt{C}}$.
+
+Suppose $\mathfrak{P}_{GC}$ reaches a finite fixed point for time $t$ at $i=\iota$.
+We first establish that $\mathfrak{P}_{iGC}$ also eventually reaches a fixed point for $t$.
+\begin{claim}
+If $\mathfrak{P}_{GC}$ reaches a finite fixed point at $t$, $\iota$, then $\mathfrak{P}_{iGC}$ also eventually reaches a fixed point.
+\end{claim}
+\begin{claimproof}
+By the above argument, $\tt{A}_{I,t,j} \subseteq \tt{A}_{\exists,t,j} \cup \tt{A}_{\top,t} = \tt{A}_{\exists,t,\iota} \cup \tt{A}_{\top,t}$ for all $j \geq \iota$.
+Since $\tt{<=}$ can only increase $\tt{A}_{I,t,j}$ and $\tt{A}_{I,t,j}$ is upper bounded, $\mathfrak{P}_{iGC}$ must also reach a fixed point for $t$ after a finite number of steps after $\iota$.
+\end{claimproof}
+
+Finally, suppose \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold at $t-1$, $\iota$ which is a fixed point of $\mathfrak{P}_{iGC}$ for time $t-1$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $~\tt{<+}~$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Correspondingly, $\tt{A}_E$ appears in (at most) one instantiated GC rule $\langle \tt{A}_E, \tt{D}_{1,E}, \dots, \tt{D}_{k,E} \rangle$ $~\tt{<-}~$ $\tt{GCI}(\tt{A}_{E},$ $\tt{D}_{1,E}, \dots, \tt{D}_{k,E}; \tt{B}_{1,E}, \dots, \tt{B}_{k',E})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle$ $= \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota};$ $\tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and
+$\langle \tt{A}_E^-, \tt{D}_{1,E}^-, \dots, \tt{D}_{k,E}^- \rangle = \tt{GCI}(\tt{A}_{E,t-1,\iota}, \tt{D}_{1,E,t-1,\iota}, \dots, \tt{D}_{k,E,t-1,\iota};$ $\tt{B}_{1,E,t-1,\iota},$ $\dots, \tt{B}_{k',E,t-1,\iota})$.
+By the conservative property of $\tt{GC}$, we have that $\tt{A}_{\exists}^* \subseteq \tt{A}_{\exists,t-1,\iota}$, $\tt{A}_{\top}^* \supseteq \tt{A}_{\top,t-1}$, and $\tt{A}_{\exists}^* \cup \tt{A}_{\top}^* = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,}$.
+Furthermore, we have that $\tt{A}_I^- \subseteq \tt{A}_{T}^*$ if $\tt{iGC}$ is weakly consistent with $\tt{GC}$ on $\tt{A}$.
+Hence,
+\begin{align}
+&\tt{A}_{\exists,t,0}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_\exists^* \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^*\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^* & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^* & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^* & \text{(Lemma \ref{lem:merge_gc_inv})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^*. & \text{(Property \ref{property:gc_conservative})} \label{eq:thm:ins_correct:timestep}
+\end{align}
+If $\tt{A}$ is non-augmented, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align}
+\tt{A}_{\exists,t,0}
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_\top^*. & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+\subseteq& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} \nonumber\\% \label{eq:thm:inst_correct:timestep_0}\\
+\subseteq& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_I^- & \text{(I.H.)} \nonumber\\% \label{eq:thm:inst_correct:timestep_1}\\
+=& \tt{A}_{I,t,0} \nonumber
+\end{align}
+If $\tt{A}$ is key-augmented, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align*}
+\tt{A}_{\exists,t,0}
+\subseteq& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} 
+\\
+\subseteq& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+-(\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(I.H.)}\\
+=& \tt{A}_{I,t,0}
+\end{align*}
+In both cases, we see that
+\begin{align*}
+&\tt{A}_{I,t,0}\\
+\subseteq&~ \tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)} \\
+\subseteq&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)} & \text{(I.H.)} \\
+=&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Lemma \ref{lem:merge_gc_inv})} \\
+=&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \tt{A}_\exists^* \cup \tt{A}_\top^* \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Property \ref{property:gc_conservative})}\\
+=&~ \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}
+\end{align*}
+Furthermore, for $\tt{A}_!$, we have
+\begin{align*}
+\tt{A}_{!,t,0}
+&= \tt{A}_{!,t-1,\iota} \cup \pi_!\left(\bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)\\
+&= \pi_!\left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right) & \text{(I.H.)} \\
+&= \pi_!(\tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}) & \text{(Lemma \ref{lem:merge_gc_inv})}
+\end{align*}
+where in the final equality we have used the same argument as above for sets without primary keys.
+\end{proof}
+
+\begin{cor}
+\label{cor:instantiated_equivalence_of_output}
+If $\tt{A}$ is an output set, it has $\tt{A}_I = \tt{A}_\exists = \tt{A}$.
+\end{cor}
+
+\begin{cor}
+\label{cor:instantiated_confluence_of_output}
+If $\mathfrak{P}$ is confluent and $\tt{A}$ is an output set, then $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_I$.
+\end{cor}
+
+\begin{cor}
+\label{cor:instantiated_confluence_of_keys}
+If $\mathfrak{P}$ is confluent and $\mathfrak{P}_{iGC}$ is strongly consistent with $\mathfrak{P}_{GC}$ on $\tt{A}$, then $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_I$ and $\tt{A}_!$.
+\end{cor}
+
+\subsubsection{Incomplete}
+In the previous section, Theorem \ref{thm:instantiated_correctness} established the soundness of our garbage collection rewrite --- tuples are deleted only if they do not affect future computation.
+Unfortunately, it is not generally possible to establish completeness, i.e., that any tuple that could be removed without affecting future computation will be removed.
+
+There are a couple of possible reasons for incompleteness.
+Firstly, there may not be a unique largest set of reclaimable tuples.
+For example, consider the function $\tt{f}(\tt{A}) = \emptyset$ if $|\tt{A}| = 0$ and $\{1\}$ otherwise.
+Given the input $\tt{A} = \{a,b\}$, either $a$ or $b$ can be reclaimed without affecting computation, but we cannot safely reclaim both tuples.
+
+Secondly, the act of garbage collection itself reduces the information available for reasonable about safe reclamation.
+Consider the program
+\begin{align*}
+\tt{A} &\quad\tt{<}\sim\quad \tt{chnA}\\
+\tt{B} &\quad\tt{<}\sim\quad \tt{chnB}\\
+\tt{C} &\quad\tt{<=}\quad \tt{A} \cap \tt{B}\\
+\tt{D} &\quad\tt{<}\sim \tt{C}
+\end{align*}
+If a tuple $x$ arrives in both $\tt{A}$ and $\tt{B}$, it is derived in $\tt{C}$ and sent to $\tt{D}$.
+A complete garbage collection must immediately reclaim $x$ from both $\tt{A}$ and $\tt{B}$, and eventually from $\tt{C}$ once its arrival at $\tt{D}$ has been determined.
+Now if $x$ arrives in $\tt{A}$ again but not in $\tt{B}$, we cannot determine from $\tt{A}$, $\tt{B}$ and $\tt{C}$ that it is safe to delete.
+While it is possible to deduce that $x$ in $\tt{A}$ is safe for deletion by examining $\tt{D}$, this would require multi-rule reasoning, and in the worst case, over the entire program $\tt{P}$.
+Doing so is complex and beyond the scope of our current work.fi
+
+
+
+\subsection{Coordination}
+Unlike $\mathfrak{P}_{GC}$, the instantiated GC program $\tt{P}_{iGC}$ is in general \emph{not confluent} even if $\mathfrak{P}$ is.
+This appears to run counter to our goal of reconciling CALM with garbage collection.
+However, we highlight that $\mathfrak{P}_{iGC}$ is `confluent' in $\tt{A}_\exists$, in the sense that if a tuple $x$ is in $\tt{A}_\exists$, then all runs of $\mathfrak{P}_{iGC}$ will agree that $x \in \tt{A}_I$.
+Thus, $\mathfrak{P}$ is `non-confluent' only with respect to tombstone sets $\tt{A}_\top$, i.e., separate runs only disagree on tuples that, by our invariants, do not affect the outcome!
+
+In fact, the `confluence' of \cite{marczak2012confluence} was defined in terms of agreement on output sets.
+Dedalus$^+$ (and monotone Bloom$^L$) are restrictions on the programming language to ensure that \emph{all sets and lattices} are temporally inflationary and confluent.
+This does not exclude the possibility of other programs in non-monotone Bloom$^L$ being confluent in some output sets;
+our program $\mathfrak{P}_{iGC}$ is exactly an example of such a program.
+Instead of restricting the language, we restrict the possible GC functions to ensure that output sets always converge.
+
+The CALM analysis of \cite{ameloot2014weaker} also explicitly defined `coordination-freeness' and `monotonicity of queries' with respect to output relations, and allowed for the possibility of divergent intermediate states.
+(In particular, there are no restrictions placed on the nodes' memory relations.)
+A close examination of the analyses (see our transducer writeup) reveals that `coordination' is required only to determine that one has received the complete input.
+The GC invariant can be interpreted as an assertion that tombstoned tuples are independent of any future input, and thus do not affect the requirement (or lack thereof) of knowledge of input completeness for determining output relations.
+Said differently, coordination (or knowledge of input completeness) is required only to converge on where $\tt{A}_I$ lies in the range of $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$, but not for the confluence of the output relations that we care about.
+
+
+
+
