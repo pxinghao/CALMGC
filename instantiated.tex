@@ -22,11 +22,12 @@ A key-augmented set $\tt{C}_E$ in $\mathfrak{P}_{iGC}$ is \emph{strongly consist
 In general, it is not possible to have a strongly consistent non-augmented set, since the merge rule $\tt{A}_I ~\tt{<=}~ \tt{f}\tt{(}\dots\tt{)}$ could possibly merge some tuples from $\tt{A}_\top$ into $\tt{A}_I$.
 For strongly consistent key-augmented sets, this is prevented since tombstoned tuples are filtered from merging into $\tt{A}_I$ by checking against $\tt{A}_!$.
 
+
 \begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
 Consider a logical garbage collection rule $\tt{GC}$ that is safe for $R$, and a corresponding instantiated garbage collection rule $\tt{iGC}$.
 We say that
-$\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on a set $\tt{A}$ if it preserves weak consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$;
-$\tt{iGC}$ is \emph{strongly consistent} with $\tt{GC}$ on a set $\tt{A}$ if it preserves strong consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$.
+$\tt{iGC}$ is \emph{weakly consistent}   with $\tt{GC}$ on a set $\tt{A} \in \mathbb{W}(\tt{iGC})$ if it preserves weak consistency   of $\tt{A}_I$                 with $\tt{A}_{TS}$;
+$\tt{iGC}$ is \emph{strongly consistent} with $\tt{GC}$ on a set $\tt{A} \in \mathbb{S}(\tt{iGC})$ if it preserves strong consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$.
 
 Formally, let
 \begin{align*}
@@ -44,17 +45,19 @@ Formally, let
 ),\\
 &\langle
 \tt{A}_{1,I}^-, \dots, \tt{A}_{n_1,I}^-,
-\tt{B}_{1,I}^-, \dots, \tt{B}_{n_1,I}^-,
+\tt{B}_{1,E}^-, \dots, \tt{B}_{n_1,E}^-,
 \tt{C}_{1,E}^-, \dots, \tt{C}_{n_3,E}^-
 \rangle\\
 &= \tt{iGC}(
 \tt{A}_{1,I}, \dots, \tt{A}_{n_1,I},
-\tt{B}_{1,I}, \dots, \tt{B}_{n_2,I},
+\tt{B}_{1,E}, \dots, \tt{B}_{n_2,E},
 \tt{C}_{1,E}, \dots, \tt{C}_{n_3,E};
-\tt{D}_{1,E}, \dots, \tt{D}_{n_4,E},
-\tt{E}_{1,I}, \dots, \tt{E}_{n_5,I}
-).
+\tt{D}_{1,I}, \dots, \tt{D}_{n_4,I},
+\tt{E}_{1,E}, \dots, \tt{E}_{n_5,E}
+)
 \end{align*}
+where $\tt{A}_1, \dots, \tt{A}_{n_1}, \tt{B}_1, \dots, \tt{B}_{n_2} \in \mathbb{W}(\tt{iGC})$ and $\tt{C}_1, \dots, \tt{C}_{n_3} \in \mathbb{S}(\tt{iGC})$.
+
 We say that $\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on $\tt{A}_1, \dots, \tt{A}_{n_1}, \tt{B}_1, \dots, \tt{B}_{n_2}$, and \emph{strongly consistent} with $\tt{GC}$ on $\tt{C}_1, \dots, \tt{C}_{n_3}$, if under the conditions
 \begin{enumerate}
 \item $\forall i=1,\dots,n_1$, $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$,
@@ -71,6 +74,56 @@ the following are true:
 \item $\forall i=1,\dots,n_3$, $\tt{C}_{i,I}^- =         \tt{C}_{i,\top}^*$,
 \end{enumerate}
 \end{property}
+
+% \begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
+% Consider a logical garbage collection rule $\tt{GC}$ that is safe for $R$, and a corresponding instantiated garbage collection rule $\tt{iGC}$.
+% We say that
+% $\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on a set $\tt{A}$ if it preserves weak consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$;
+% $\tt{iGC}$ is \emph{strongly consistent} with $\tt{GC}$ on a set $\tt{A}$ if it preserves strong consistency of $\tt{A}_I$ (or $\tt{A}_E$) with $\tt{A}_{TS}$.
+
+% Formally, let
+% \begin{align*}
+% &\langle
+% \tt{A}_{1,TS}^*, \dots, \tt{A}_{n_1,TS}^*,
+% \tt{B}_{1,TS}^*, \dots, \tt{B}_{n_1,TS}^*, 
+% \tt{C}_{1,TS}^*, \dots, \tt{C}_{n_3,TS}^*
+% \rangle \\
+% &= \tt{GC}(
+% \tt{A}_{1,TS}, \dots, \tt{A}_{n_1,TS},
+% \tt{B}_{1,TS}, \dots, \tt{B}_{n_2,TS},
+% \tt{C}_{1,TS}, \dots, \tt{C}_{n_3,TS};
+% \tt{D}_{1,TS}, \dots, \tt{D}_{n_4,TS},
+% \tt{E}_{1,TS}, \dots, \tt{E}_{n_5,TS}
+% ),\\
+% &\langle
+% \tt{A}_{1,I}^-, \dots, \tt{A}_{n_1,I}^-,
+% \tt{B}_{1,I}^-, \dots, \tt{B}_{n_1,I}^-,
+% \tt{C}_{1,E}^-, \dots, \tt{C}_{n_3,E}^-
+% \rangle\\
+% &= \tt{iGC}(
+% \tt{A}_{1,I}, \dots, \tt{A}_{n_1,I},
+% \tt{B}_{1,I}, \dots, \tt{B}_{n_2,I},
+% \tt{C}_{1,E}, \dots, \tt{C}_{n_3,E};
+% \tt{D}_{1,E}, \dots, \tt{D}_{n_4,E},
+% \tt{E}_{1,I}, \dots, \tt{E}_{n_5,I}
+% ).
+% \end{align*}
+% We say that $\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on $\tt{A}_1, \dots, \tt{A}_{n_1}, \tt{B}_1, \dots, \tt{B}_{n_2}$, and \emph{strongly consistent} with $\tt{GC}$ on $\tt{C}_1, \dots, \tt{C}_{n_3}$, if under the conditions
+% \begin{enumerate}
+% \item $\forall i=1,\dots,n_1$, $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$,
+% \item $\forall i=1,\dots,n_2$, $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, and $\tt{B}_{i,!} = \pi_!(\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$,
+% \item $\forall i=1,\dots,n_3$, $\tt{C}_{i,\exists} =         \tt{C}_{i,I}$,                                                   and $\tt{C}_{i,!} = \pi_!(\tt{C}_{i,\exists} \cup \tt{C}_{i,\top})$,
+% \item $\forall i=1,\dots,n_4$, $\tt{D}_{i,\exists} \subseteq \tt{D}_{i,I} \subseteq \tt{D}_{i,\exists} \cup \tt{D}_{i,\top}$,
+% \item $\forall i=1,\dots,n_5$, $\tt{E}_{i,\exists} \subseteq \tt{E}_{i,I} \subseteq \tt{E}_{i,\exists} \cup \tt{E}_{i,\top}$, and $\tt{E}_{i,!} = \pi_!(\tt{E}_{i,\exists} \cup \tt{E}_{i,\top})$,
+% \item $\tt{A}_{1,TS}, \dots, \tt{A}_{n_1,TS},$ $\tt{B}_{1,TS}, \dots, \tt{B}_{n_2,TS},$ $\tt{C}_{1,TS}, \dots, \tt{C}_{n_3,TS},$ $\tt{D}_{1,TS}, \dots, \tt{D}_{n_4,TS},$ $\tt{E}_{1,TS}, \dots, \tt{E}_{n_5,TS}$ satisfy the Merge GC Invariant \ref{inv:merge_gc} for $R$.
+% \end{enumerate}
+% the following are true:
+% \begin{enumerate}
+% \item $\forall i=1,\dots,n_1$, $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$,
+% \item $\forall i=1,\dots,n_2$, $\tt{B}_{i,I}^- \subseteq \tt{B}_{i,\top}^*$,
+% \item $\forall i=1,\dots,n_3$, $\tt{C}_{i,I}^- =         \tt{C}_{i,\top}^*$,
+% \end{enumerate}
+% \end{property}
 
 
 

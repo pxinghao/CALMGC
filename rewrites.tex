@@ -102,7 +102,7 @@ and on the receiver side we have
 \end{align}
 These are respectively replaced in $\mathfrak{P}_{GC}$ by
 \begin{align}
-(\overline{\tt{B}}, \emptyset) &\quad\tt{<}\sim\quad \tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}
+(\overline{\tt{B}}, \emptyset) &\quad\tt{<}\sim\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
 \end{align}
 and
 \begin{align}
@@ -188,15 +188,48 @@ While it is possible to have multiple GC rules performing reclamation, we would 
 \subsection{Instantiated Garbage Collection Rewrite}
 
 \subsubsection{State}
-For a table $\tt{A}$ without primary keys in $\mathfrak{P}$, we introduce a corresponding $\tt{A}_I$ in $\mathfrak{P}_{iGC}$, and is persisted
-\[\tt{A}_I \quad\tt{<+}\quad \tt{A}_I\]
+For every set $\tt{A}$ in $\mathfrak{P}$, we introduce a corresponding $\tt{A}_I$ in $\mathfrak{P}_{iGC}$ holding the instantiated tuples.
+If $\tt{A}$ has primary keys $\tt{A}_!$, we may choose to keep $\tt{A}_!$ together with $\tt{A}_I$ in a key-augmented lattice $(\tt{A}_I, \tt{A}_!)$ in $\mathfrak{P}_{iGC}$;
+otherwise we simply use the non-augmented representation $\tt{A}_I$ without keys.
+This choice is dependent on the instantiated garbage collection rules, which we describe in the following subsection.
+For convenience, we will write $\tt{A}_E$ to mean $(\tt{A}_I, \tt{A}_!)$ if $\tt{A}$ has a key-augmented representation, and $\tt{A}_I$ if $\tt{A}$ has a non-augmented representation.
+In both cases, we persist $\tt{A}_E$ with the deferred merge rule
+\[\tt{A}_E \quad\tt{<+}\quad \tt{A}_E.\]
 
-For every table $\tt{A}$ with primary keys in $\mathfrak{P}$, we introduce a lattice $(\tt{A}_I, \tt{A}_!)$ in $\mathfrak{P}_{GC}$.
-Intuitively, $\tt{A}_!$ are the keys of all tuples that, at some point, existed in $\tt{A}$.
-As before, we persist the lattice with the deferred merge
-\[(\tt{A}_I, \tt{A}_!) \quad\tt{<+}\quad (\tt{A}_I, \tt{A}_!).\]
 
-For convenience, we will write $\tt{A}_E$ to mean $(\tt{A}_I, \tt{A}_!)$ if $\tt{A}$ has primary keys, and $\tt{A}_I$ otherwise.
+\subsubsection{Garbage collection}
+A garbage collection rule in $\mathfrak{P}_{GC}$
+\begin{align*}
+\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS} \rangle
+\quad\tt{<+}\quad
+\tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}).
+\end{align*}
+is replaced in $\mathfrak{P}_{iGC}$ by the instantiated garbage collection rule
+\begin{align*}
+\langle \tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E} \rangle
+\quad\tt{<-}\quad
+\tt{iGC}(\tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}).
+\end{align*}
+
+The choice of whether to use the non-augmented $\tt{A}_I$ or the key-augmented $(\tt{A}_I, \tt{A}_!)$ is dependent on the instantiated garbage collection rules that take $\tt{A}_E$ as input\footnote{
+	The set $\tt{A}$ can be taken as input to multiple garbage collection rules since it appears on the RHS of at most one rule, but possibly on the LHS Of multiple rules in $\mathfrak{P}$.
+}.
+If any of these instantiated garbage collection rules require the use of $\tt{A}_!$, we will choose to use the key-augmented representation.
+
+Also associated with each $\tt{iGC}$ is a partitioning of its output sets into $\mathbb{S}(\tt{iGC})$ and $\mathbb{W}(\tt{iGC})$, such that $\mathbb{S}(\tt{iGC}) \cap \mathbb{W}(\tt{iGC}) = \emptyset$ and $\mathbb{S}(\tt{iGC}) \cup \mathbb{W}(\tt{iGC}) = \{\tt{A}, \tt{C}_1, \dots, \tt{C}_n\}$,
+and every set in $\mathbb{S}(\tt{iGC})$ has a key-augmented representation.
+Intuitively, a set $\tt{C}$ in $\mathbb{S}(\tt{iGC})$ is one for which $\tt{iGC}$ is strongly consistent with $\tt{GC}$, in the sense that $\tt{iGC}$ guarantees that $\tt{C}_I = \tt{C}_\exists$, and $\tt{C}_! = \pi_!(\tt{C}_\exists \cup \tt{C}_\top)$;
+on the other hand, $\tt{iGC}$ is weakly consistent with $\tt{GC}$ on a set $\tt{C}$ if it guarantees that $\tt{C}_\exists \subseteq \tt{C}_I \subseteq \tt{C}_\exists \cup \tt{C}_\top$
+--- we formalize these notions in the sequel.
+Since each set appears on the LHS in only a single garbage collection rule\footnote{
+	Each set appears on the LHS of at most one garbage collection rule because it appears on the RHS of at most one rule in $\mathfrak{P}$.
+}, we can define
+$\mathbb{S}(\mathfrak{P}_{iGC}) = \bigcup_{\tt{iGC} \in \mathfrak{P}_{iGC}} \mathbb{S}(\tt{iGC})$
+and
+$\mathbb{W}(\mathfrak{P}_{iGC}) = \bigcup_{\tt{iGC} \in \mathfrak{P}_{iGC}} \mathbb{W}(\tt{iGC})$
+as the union of the respective partitions over all garbage collection rules.
+To simplify notation, we will use $\mathbb{S} := \mathbb{S}(\mathfrak{P}_{iGC})$ and $\mathbb{W} := \mathbb{W}(\mathfrak{P}_{iGC})$.
+
 
 \subsubsection{Merge, Deferred Merge, Asynchronous Merge}
 A rule $R$ in $\mathfrak{P}$,
@@ -208,18 +241,4 @@ if $\tt{B}$ has no primary keys, and otherwise
 
 
 
-
-\subsubsection{Garbage collection}
-A garbage collection rule in $\mathfrak{P}_{GC}$
-\begin{align*}
-\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS} \rangle
-\quad\tt{<+}\quad
-\tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}).
-\end{align*}
-is replaced in $\mathfrak{P}_{iGC}$ by
-\begin{align*}
-\langle \tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E} \rangle
-\quad\tt{<-}\quad
-\tt{iGC}(\tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}).
-\end{align*}
 

@@ -52,8 +52,8 @@ Thus, the execution of the set difference rule is unaffected by the deletion of 
 Consider any merge or deferred merge rule 
 \[R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}\]
 where $\tt{<op>}$ is either $\tt{<=}$ or $\tt{<+}$,
-$\tt{A}_1,\dots,\tt{A}_n$ are non-augmented sets,
-$\tt{U}_1,\dots,\tt{U}_m$ are key-augmented sets,
+the sets $\tt{A}_1,\dots,\tt{A}_n \in \mathbb{W}$,
+the sets $\tt{U}_1,\dots,\tt{U}_m \in \mathbb{S}$,
 and RHS is not a channel.
 We require that, 
 $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,$
@@ -90,7 +90,7 @@ That is, letting $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{
 
 \begin{property}[Merge GC Safety]
 \label{property:gc_safety}
-Let $R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ be a merge or deferred merge rule.
+Let $R: \tt{B} ~\tt{<op>}~ \tt{f(}\tt{A}_1,\dots,\tt{A}_n, \tt{U}_1, \dots, \tt{U}_m\tt{)}$ be a merge or deferred merge rule, where $\tt{A}_1, \dots, \tt{A}_n \in \mathbb{W}$ and $\tt{U}_1, \dots, \tt{U}_m \in \mathbb{S}$.
 A garbage collection rule $\tt{GC}$ is safe for $R$ if it respects output relations, and maintains the Merge GC Invariant \ref{inv:merge_gc} for $R$.
 That is, if
 \begin{enumerate}
