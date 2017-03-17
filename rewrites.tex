@@ -4,7 +4,7 @@
 \label{sec:rewrites}
 
 \setcounter{subsection}{-1}
-\subsection{Copy rewrite}
+\subsection{Simplifying copy rewrite}
 We make the following simplifying assumption about $\mathfrak{P}$.
 \begin{assumption}
 \label{ass:copy}
@@ -69,25 +69,15 @@ We also add rule
 All non-GC rules in $\mathfrak{P}_{GC}$ will be of the form $(\tt{A}_\exists, \tt{A}_\top) ~\tt{<op>}~ (\tt{X}, \emptyset)$.
 
 
-\subsubsection{Merges}
+\subsubsection{Merges, Deferred Merges}
 We next consider rules in the original program $\mathfrak{P}$.
 For every rule
 \begin{align}
-\tt{B} \quad\tt{<=}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
+\tt{B} \quad\tt{<op>}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
 \end{align}
-in $\mathfrak{P}$, we add the rule
+in $\mathfrak{P}$, where $\tt{<op>}$ is a merge $\tt{<=}$ or deferred merge $\tt{<+}$, we add the below rule to $\mathfrak{P}_{GC}$:
 \begin{align*}
-(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<=}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
-\end{align*}
-
-\subsubsection{Deferred merges}
-For the deferred merge rule
-\begin{align}
-\tt{B} \quad\tt{<+}\quad \tt{f(}\tt{A}_1,\dots,\tt{A}_n\tt{)}
-\end{align}
-in $\mathfrak{P}$, we add the rule
-\begin{align*}
-(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<+}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
+(\tt{B}_\exists, \tt{B}_\top) &\quad\tt{<op>}\quad (\tt{f(}\tt{A}_{1,\exists} \cup \tt{A}_{1,\top},\dots,\tt{A}_{n,\exists} \cup \tt{A}_{n,\top}\tt{)}, \emptyset)
 \end{align*}
 
 \subsubsection{Asynchronous merges}
@@ -108,17 +98,9 @@ and
 \begin{align}
 (\tt{B}_\exists, \tt{B}_\exists) &\quad\tt{<=}\quad (\overline{\tt{B}}, \emptyset)
 \end{align}
-% Additionally, at the receiver node, we add a channel $\underline{\overline{\tt{B}}}$, and include the rule
-% \begin{align}
-% \underline{\overline{\tt{B}}} &\quad\tt{<}\sim\quad \overline{\tt{B}}
-% \end{align}
-% At the sender node, we add a table $\underline{\tt{B}}$ and include the rule
-% \begin{align}
-% \underline{\tt{B}} &\quad\tt{<=}\quad \underline{\overline{\tt{B}}}
-% \end{align}
-% Clearly a tuple is in $\underline{\tt{B}}$ only if it has been sent and received successfully.
-For this section, we do not perform garbage collection for asynchronous merge rules.
+For now, we do not perform garbage collection for asynchronous merge rules.
 That is, we treat all sets $\tt{A}_1, \dots, \tt{A}_n$ that appear as input on the RHS of asynchronous rules as `output' sets from which we never tombstone any tuple.
+We defer the garbage collection for asynchronous rules to Section \ref{sec:async_gc}.
 
 \subsubsection{Garbage collection}
 The above rewrite rules do not perform any garbage collection; in fact, it is easy to see that they are equivalent to $\mathfrak{P}$.

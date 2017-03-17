@@ -2,12 +2,12 @@
 
 \section{Properties and Analysis of Logical Garbage Collection}
 \label{sec:logical}
-
-\subsection{Properties of GC rules}
 For our rewrite to be sensible, we require that the GC rules have certain properties.
 In particular, the GC rules must be safe -- they should only tombstone tuples that have no effect on future derivations.
 We provide some intuition for this safety in the following examples.
 
+\setcounter{subsection}{-1}
+\subsection{Intuition}
 \begin{example}[Safety for Projection]
 Suppose we have the projection rule $\tt{X} ~\tt{<=}~ \pi_S(\tt{Y})$ in $\mathfrak{P}$, and correspondingly $\tt{X}_{TS} ~\tt{<=}~ (\pi_S(\tt{Y}_\exists \cup \tt{Y}_\top), \emptyset)$ in $\mathfrak{P}_{GC}$.
 % , and $\tt{X}_I ~\tt{<=}~ \pi_S(\tt{Y}_I)$ in $\mathfrak{P}_{iGC}$.
@@ -47,6 +47,10 @@ $,
 where the second equality holds because $\tt{Y}_\top \cap \widehat{\tt{X}} \subseteq \tt{X}_\top \cap \widehat{\tt{X}} = \emptyset$.
 Thus, the execution of the set difference rule is unaffected by the deletion of tombstones.
 \end{example}
+
+
+\subsection{Properties of GC rules}
+
 
 \begin{invariant}[Merge GC Invariant]\label{inv:merge_gc}
 Consider any merge or deferred merge rule 
@@ -522,7 +526,7 @@ Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC 
 Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
 Then,
 \begin{align*}
-&\tt{A}_{t,0}\\
+\tt{A}_{t,0}
 =& \tt{A}_{t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,t-1,\iota},\dots,\tt{C}_{j,n_j,t-1,\iota}\tt{)}\\
 =& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
 \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
