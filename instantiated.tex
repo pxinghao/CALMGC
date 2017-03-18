@@ -193,6 +193,11 @@ $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subset
 If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
 clearly $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
 
+\begin{example}[Union and Intersection GC]
+$\tt{iGCUnion}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \tt{iGCIntersect}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{B}_I, \tt{C}_I \cap \tt{B}_I \rangle$ is weakly consistent with $\tt{GCUnion}$ and $\tt{GCIntersect}$ on $\tt{A}$ and $\tt{C}$.
+\end{example}
+The proof of consistency is essentially the same as for $\tt{iGCCopy}$.
+
 \begin{example}[Select GC]
 $\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I)$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCSelect}$ on $\tt{A}$.
 \end{example}
@@ -467,23 +472,61 @@ Doing so is complex and beyond the scope of our current work.fi
 
 
 \subsection{Coordination}
-Unlike $\mathfrak{P}_{GC}$, the instantiated GC program $\tt{P}_{iGC}$ is in general \emph{not confluent} even if $\mathfrak{P}$ is.
+Unlike $\mathfrak{P}_{GC}$, the instantiated GC program $\tt{P}_{iGC}$ is in general \emph{not confluent on all sets} even if $\mathfrak{P}$ is.
 This appears to run counter to our goal of reconciling CALM with garbage collection.
 However, we highlight that $\mathfrak{P}_{iGC}$ is `confluent' in $\tt{A}_\exists$, in the sense that if a tuple $x$ is in $\tt{A}_\exists$, then all runs of $\mathfrak{P}_{iGC}$ will agree that $x \in \tt{A}_I$.
-Thus, $\mathfrak{P}_{iGC}$ is `non-confluent' only with respect to tombstone sets $\tt{A}_\top$, i.e., separate runs only disagree on tuples that, by our invariants, do not affect the outcome!
-
-In fact, the `confluence' of \cite{marczak2012confluence} was defined in terms of agreement on output sets.
-Dedalus$^+$ (and monotone Bloom$^L$) are restrictions on the programming language to ensure that \emph{all sets and lattices} are temporally inflationary and confluent.
-This does not exclude the possibility of other programs in non-monotone Bloom$^L$ being confluent in some output sets;
-our program $\mathfrak{P}_{iGC}$ is exactly an example of such a program.
-Instead of restricting the language, we restrict the possible GC functions to ensure that output sets always converge.
-
-The CALM analysis of \cite{ameloot2014weaker} also explicitly defined `coordination-freeness' and `monotonicity of queries' with respect to output relations, and allowed for the possibility of divergent intermediate states.
-(In particular, there are no restrictions placed on the nodes' memory relations.)
-A close examination of the analyses (see our transducer writeup) reveals that `coordination' is required only to determine that one has received the complete input.
-The GC invariant can be interpreted as an assertion that tombstoned tuples are independent of any future input, and thus do not affect the requirement (or lack thereof) of knowledge of input completeness for determining output relations.
-Said differently, coordination (or knowledge of input completeness) is required only to converge on where $\tt{A}_I$ lies in the range of $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$, but not for the confluence of the output relations that we care about.
+Thus, $\mathfrak{P}_{iGC}$ is `non-confluent'\footnote{
+	This is particularly true for weakly consistent sets; for strongly consistent sets, we also have confluence in $\tt{A}_I$ by Corollary \ref{cor:instantiated_confluence_of_keys}.
+}
+only with respect to tombstone sets $\tt{A}_\top$, i.e., separate runs only disagree on tuples that, by our invariants, do not affect the outcome.
+In particular, for output sets, we have $\tt{A}_\exists = \tt{A}_I = \tt{A}$, and hence $\mathfrak{P}_{iGC}$ is confluent on the output that we care about.
+We further elaborate on the coordination of $\mathfrak{P}_{iGC}$ using the analysis frameworks of \cite{marczak2012confluence} and \cite{ameloot2013relational}.
 
 
+\subsubsection{Dedalus$^+$ confluence analysis of \cite{marczak2012confluence}}
+In \cite{marczak2012confluence}, `confluence' of a program $\mathfrak{Q}$ is defined as the agreement of `all runs' on `eventually always true facts'.
+Here, a `run' is an execution\footnote{
+	To be precise, \cite{marczak2012confluence} defined confluence in terms of `models' and not `runs'.
+    However, as we show in our discussion of Bloom$^L$, the model-theoretic and operational fixed-point approach are equivalent.
+} of $\mathfrak{Q}$ obeying some causally plausible message-time assignment, and an `eventually true fact' is a tuple that is true at a node $v$ for all times greater than some $(v,t)$.
+The eventually true facts are defined to be $\mathfrak{Q}$'s output.
+
+In order to achieve confluence, \cite{marczak2012confluence} defined a sublanguage, Dedalus$^+$, for which all sets (or relations) are temporally inflationary, i.e., any derived fact is immediately eventually-always-true.
+It is then straightforward to show that all relations of any program $\mathfrak{Q}$ expressed in Dedalus$^+$ are eventually-always-true and that $\mathfrak{Q}$ is confluent.
+
+Our instantiated garbage collection program $\mathfrak{Q}$ is not expressible in Dedalus$^+$, nor is it confluent by the definition of \cite{marczak2012confluence}.
+However, we could refine the definition to say that a program $\mathfrak{Q}$ is confluent on a tuple (or fact) $x$ if all runs agree on whether the tuple is eventually-always-true.
+Then, our correctness proofs of Theorem \ref{thm:instantiated_correctness} and Corollary \ref{cor:instantiated_equivalence_of_output} imply that $\mathfrak{P}_{iGC}$ is confluent on all tuples of $\tt{A}_\exists$ and $\tt{A}^c = (\tt{A}_\exists \cup \tt{A}_\top)^c$.
+In other words, no coordination is needed to control the message ordering as long as we do not care about tuples of $\tt{A}_\top$.
+For the sets that have been denoted as output, we guarantee that $\tt{A}_\top = \emptyset$, so every run agrees on the tuples that are present (and that are absent) from $\tt{A}$.
+
+One can therefore see that expression in Dedalus$^+$ is a sufficient but not necessary\footnote{
+	A simple example of a non-Dedalus$^+$ but confluent program is $\tt{A} ~\tt{<=}~ \mathcal{E}$; $\tt{B} ~\tt{<=}~ \tt{A}$; $\tt{A} ~\tt{<-}~ \tt{B}$.
+} condition for confluence.
+The use of deferred deletes does not immediately condemn the program to be non-confluent.
+While \cite{marczak2012confluence} had used a syntactic restriction of the language to achieve confluence, we instead use a semantic restriction on the possible garbage collection rules, via the imposition of Properties \ref{property:gc_safety} and \ref{property:instantiated_gc_consistent}.
+
+% In fact, the `confluence' of \cite{marczak2012confluence} was defined in terms of agreement on output sets.
+% Dedalus$^+$ (and monotone Bloom$^L$) are restrictions on the programming language to ensure that \emph{all sets and lattices} are temporally inflationary and confluent.
+% It is a sufficient but not necessary condition for confluence, and does not exclude the possibility of other programs in non-monotone Bloom$^L$ being confluent in some output sets;
+% our program $\mathfrak{P}_{iGC}$ is exactly an example of such a program.
+% Instead of restricting the language, we restrict the possible GC functions to ensure that output sets always converge.
+
+
+
+\subsubsection{Transducer network CALM analysis of \cite{ameloot2013relational}}
+A transducer network as defined in \cite{ameloot2013relational} is a distributed set of compute nodes endowed with message buffers and memory.
+At each time step, one node in the transducer network computes queries on their memory and messages in its buffer, sending messages to its neighbors, updating its memory, and emitting an output.
+The output of the transducer network is the union of outputs of all nodes across all time steps.
+
+Under this model, \cite{ameloot2013relational} proves the CALM theorem: a query is monotone if and only if there is a transducer network that can compute the query as its output under any message ordering, and the transducer network already produces the correct output without communication.
+Note that this is statement only of the monotonicity of the \emph{output}, and in particular there are no restrictions placed on the memory relations, which may grow or shrink without affecting the validity of the CALM theorem.
+In fact, this is exactly the situation with $\mathfrak{P}_{iGC}$ --- output sets grow monotonically, but other non-output sets (which are essentially memory relations of the transducer network) may be reclaimed so long as the derivation of outputs are not affected.
+
+
+We also extended the analysis of \cite{ameloot2013relational} to an open-world model where inputs may arrive at arbitrarily late times, and show that a query is monotone if and only if there is a transducer network that can compute it under any message ordering and input arrival times.
+Stated in this way, coordination is only need to determine that the completeness of the input, i.e., that all input has arrived and been received by the node.
+The GC Invariant \ref{inv:merge_gc} can be interpreted as an assertion that tombstoned tuples are independent of any future input;
+thus, no additional coordination is required to determine input completeness before garbage collecting tombstoned tuples.
 
 

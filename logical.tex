@@ -49,7 +49,7 @@ Thus, the execution of the set difference rule is unaffected by the deletion of 
 \end{example}
 
 
-\subsection{Properties of GC rules}
+\subsection{Properties of Logical GC rules}
 
 
 \begin{invariant}[Merge GC Invariant]\label{inv:merge_gc}
@@ -119,7 +119,7 @@ Then, $\tt{GC}$ is \emph{conservative} if $\tt{A}_{j,\exists}^* \subseteq \tt{A}
 That is, $\tt{GC}$ only moves tuples from $\exists$ to $\top$.
 \end{property}
 
-\subsection{Examples of GC rules}
+\subsection{Examples of Logical GC rules}
 \label{sec:logical:example}
 A number of example logical garbage collection rules are presented below.
 Each of these rules are monotone, conservative, and safe for some rule $R$.
@@ -193,11 +193,34 @@ Then
 Furthermore, it follows from the GC Rule Conservation Property \ref{property:gc_conservative}, we also have that $(\tt{A}_\exists - \tt{B}_\cap) \cup (\tt{A}_\top \cup \tt{B}_\cap) \subseteq (\tt{A}_\exists' - \tt{B}_\cap') \cup (\tt{A}_\top' \cup \tt{B}_\cap')$.
 Hence, $\tt{GCcopy}$ is monotone.
 
-Note also that if the copies are done via a (non-deferred) merge, and if we reach a fixed point at $t$, $\iota$, then it must be that $\tt{B}_{i,\exists,t,\iota} \cup \tt{B}_{i,\top,t,\iota} \supseteq \tt{A}_{\exists,t,\iota} \cup \tt{A}_{\top,t,\iota}$, so $\tt{GCCopy}$ can tombstone all of $\tt{A}_\exists$.
 ~
 
 % GC-Max: GC on A, B gives some tombstones larger than GC on any A' < A, B' < B, and is of largest cardinality among all such tombstones.
 % Note: GC-Max is not unique; but since monotone, will still give a unique minimal model for each GC-Max rule.
+
+\begin{example}[Union GC]
+\label{ex:union_gc}
+Consider the union $R: \tt{B} ~\tt{<op>}~ \tt{A} \cup \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then $\tt{GCUnion}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*) \rangle$ where $\tt{A}^* = \tt{A}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ and $\tt{C}^* = \tt{C}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ is safe for $R$.
+\end{example}
+Invariant \ref{inv:merge_gc} for the union rule reduces to $\tt{A}_\top \cup \tt{C}_\top \subseteq \tt{A}_\exists \cup \tt{C}_\exists \cup \tt{B}_\exists \cup \tt{B}_\top$.
+Then,
+\begin{align*}
+\tt{A}_\top \cup \tt{A}^* \cup \tt{C}_\top \cup \tt{A}^*
+&\quad\subseteq\quad \tt{A}_\exists \cup \tt{C}_\exists \cup \tt{B}_\exists \cup \tt{B}_\top\\
+&\quad=\quad (\tt{A}_\exists \cap (\tt{B}_\exists \cup \tt{B}_\top)^c) \cup (\tt{C}_\exists \cap (\tt{B}_\exists \cup \tt{B}_\top)^c) \cup \tt{B}_\exists \cup \tt{B}_\top\\
+&\quad=\quad (\tt{A}_\exists - \tt{A}^*) \cup (\tt{C}_\exists - \tt{A}^*) \cup \tt{B}_\exists \cup \tt{B}_\top\\
+\end{align*}
+so $\tt{GCUnion}$ is safe for $R$.
+
+\begin{example}[Intersection GC]
+\label{ex:intersection_gc}
+Consider the union $R: \tt{B} ~\tt{<op>}~ \tt{A} \cap \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then $\tt{GCIntersect}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*) \rangle$ where $\tt{A}^* = \tt{A}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ and $\tt{C}^* = \tt{C}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ is safe for $R$.
+\end{example}
+Note that $\tt{GCIntersect} = \tt{GCUnion}$, both of which tombstones tuples from $\tt{A}_\exists$ and $\tt{C}_\exists$ after they have appeared in $\tt{B}_\exists \cup \tt{B}_\top$.
+In this case, Invariant \ref{inv:merge_gc} reduces to $\tt{A}_\top \in \tt{B}_\exists \cup \tt{B}_\top$ and $\tt{C}_\top \in \tt{B}_\exists \cup \tt{B}_\top$.
+Then $\tt{A}_\top \cup \tt{A}^* \subseteq \tt{B}_\exists \cup \tt{B}_\top$ and $\tt{C}_\top \cup \tt{C}^* \subseteq \tt{B}_\exists \cup \tt{B}_\top$, so $\tt{GCIntersect}$ is safe for $R$.
 
 \begin{example}[Project GC]
 \label{ex:project_gc}
@@ -233,7 +256,7 @@ Thus, Invariant \ref{inv:merge_gc} is trivially true for linear $\tt{f}$.
 Intuitively, a tuple $a \in \tt{A}_\exists$ is independent of all other tuples when $\tt{f}$ is linear, and hence, its complete effects will have been realized in $\tt{B}$ (either through a merge or deferred merge) by the point at which we perform garbage collection.
 Therefore, we can always reclaim the entire set without impacting our results.
 
-In particular, observe that the copy, select, and project rules of previous examples are all linear, and thus can be fully reclaimed at the end of each timestep.
+In particular, observe that the copy, union, select, and project rules of previous examples are all linear, and thus can be fully reclaimed at the end of each timestep.
 
 \begin{example}[Join GC]
 \label{ex:join_gc_no_manifests}

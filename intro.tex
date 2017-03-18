@@ -3,6 +3,17 @@
 \section{Introduction}
 \label{sec:intro}
 
+1. Edelweiss presented garbage collection rules which used deferred deletes, and so cannot appeal to the analysis of \cite{marczak2012confluence} to prove confluence.
+No formal proofs were given; only intuitive arguments.
+
+2. Many of the GC opportunities of \cite{conway2014edelweiss} depended on non-monotone operations, in particular, set differences.
+
+A. We formalize the intuitions of Edelweiss in a general framework.
+Within this framework, we prove that the GC programs are correct.
+We also explain how garbage collection is `confluent', despite not being expressed in the monotone sublanguage (Dedalus$^+$) defined in \cite{marczak2012confluence}.
+
+B. We provide GC for more operations, including the non-monotone set differences discussed in \cite{conway2014edelweiss}, but also monotone operations such as projection, selection, join, unions, intersections.
+
 
 It is worth highlighting the similarities and differences of our approach from that of \cite{marczak2012confluence}.
 In \cite{marczak2012confluence}, the syntax of the language was restricted such that sets are always growing\footnote{In Dedalus$^+$ formalism, all sets are `temporally inflationary'.}, and can therefore can be shown to be confluent.
