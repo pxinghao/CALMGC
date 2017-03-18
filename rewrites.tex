@@ -3,9 +3,11 @@
 \section{Rewrites}
 \label{sec:rewrites}
 
+We present rewrites of an Edelweiss program $\mathfrak{P}$ into a logical garbage collection program $\mathfrak{P}_{GC}$ and an instantiated garbage collection program $\mathfrak{P}_{iGC}$.
+
 \setcounter{subsection}{-1}
 \subsection{Simplifying copy rewrite}
-We make the following simplifying assumption about $\mathfrak{P}$.
+Before presenting the rewrites $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$, We first make the following simplifying assumption about $\mathfrak{P}$.
 \begin{assumption}
 \label{ass:copy}
 Let $\tt{A}$ be a table or channel in $\mathfrak{P}$ appearing in multiple rules

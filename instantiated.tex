@@ -6,13 +6,46 @@
 
 
 \setcounter{subsection}{-1}
+Logical GC rules define the tombstoned tuples that can be safely deleted without affecting derivations.
+Thus, for $\mathfrak{P}_{iGC}$ to produce the correct output, we will require that instantiated GC rules are `consistent' with their logical GC counterparts, in the sense that instantiated rules delete only the tuples that the logical garbage collection rule deems safe for deletion.
+We expand on this intuition with a couple of illustrative examples below.
+
 \subsection{Intuition}
+\begin{example}[Consistency for Projection]
+Consider the projection $R: \tt{B} ~\tt{<op>}~ \pi_S(\tt{A})$, where $\tt{<op>}$ is a merge or deferred merge.
+Further suppose that $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$ are at a `weakly consistent' state with respect to $\tt{A}$ and $\tt{B}$, i.e.,
+$\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and also
+$\tt{B}_\exists \subseteq \tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+
+The logical garbage collection rule $\tt{GCProject}$ for projection tells us that the  tuples that are safe for deletion are those in $\tt{A}_\exists \cup \tt{A}_\top$ whose projection have appeared in $\tt{B}_\exists \cup \tt{B}_\top$, i.e., $\tt{A}_\top \cup \tt{A}^*$, where $\tt{A}^* = \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\}$.
+Our instantiated garbage collection rule must identify safe-for-deletion tuples using only $\tt{A}_I$ and $\tt{B}_I$; the only such tuples that can be guaranteed safe are the tuples in $\tt{A}_I$ whose projection have appeared in $\tt{B}_I$, i.e., $\tt{A}_I^- = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \tt{A}_\top \cup \tt{A}^*$.
+
+Note that this choice $\tt{A}^-$ of tuples to delete maintains weak consistency of $\tt{A}$, such that $\tt{A}_\exists - \tt{A}^* \subseteq \tt{A}_I - \tt{A}^- \subseteq (\tt{A}_\exists - \tt{A}^*) \cup (\tt{A}_\top \cup \tt{A}^*)$.
+\end{example}
+
+\begin{example}[Consistency for Negative Difference Reclamation]
+Suppose we are in the setting of Example \ref{ex:logical:dr-}, and that $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$ are at a weakly consistent state for $\tt{B}$ and $\tt{C}$, and a strongly consistent state for $\tt{A}$, i.e.,
+$\tt{A}_I = \tt{A}_\exists$,
+$\tt{B}_\exists \subseteq \tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, and
+$\tt{C}_\exists \subseteq \tt{C}_I \subseteq \tt{C}_\exists \cup \tt{C}_\top$.
+By Lemma \ref{lem:merge_gc_inv}, $\tt{A}_{TS}$, $\tt{B}_{TS}$, and $\tt{C}_{TS}$ satisfy the Invariant \ref{inv:merge_gc}, so $\tt{C}_\top \subseteq \tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$.
+
+The logical garbage collection rule $\tt{GCDR-}$ for negative set difference reclamation tells us that the tuples that are safe for deletion are
+$\tt{A}_\top \cup \tt{A}^* := \tt{A}_\top \cup [(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)]$
+and
+$\tt{C}_\top \cup \tt{C}^* := \tt{C}_\top \cup [(\tt{C}_\exists \cup \tt{C}_\top) \cap \tt{A}_\top]$.
+The instantiated garbage collection rule must identify the correct tuples to delete: since $\tt{A} \in \mathbb{S}$ and $\tt{C} \in \mathbb{W}$, we must delete all of $\tt{A}_\top$ but can delete a subset of $\tt{C}_\top$.
+Furthermore, this determination must be made using only $\tt{A}_I$, $\tt{A}_!$, and $\tt{C}_I$.
+Given our above assumptions, we can see (Example \ref{ex:instantiated:dr-}) that 
+$(\tt{A}_I \cap \tt{C}_I) \cup (\tt{A}_! - \tt{A}_I) = \tt{A}_\top \cup \tt{A}^*$
+and $\tt{C}_I \cap (\tt{A}_! - \tt{A}_I) \subseteq \tt{C}_\top \cup \tt{C}^*$.
+
+As with the previous example, the choice of tuples to delete maintains strong consistency of $\tt{A}$ and the weak consistency of $\tt{C}$.
+\end{example}
 
 \subsection{Properties of Instantiated GC rules}
-\begin{property}[Instantiated GC Conservation]\label{property:instantiated_gc_conservative}
-Let $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{iGC}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
-The instantiated GC rule $\tt{iGC}$ is \emph{conservative} if $\forall \tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}$, $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,I}$ and $\tt{A}_{i,!}^- = \pi_!(\tt{A}_{i,I})$.
-\end{property}
+We formalize the above intuitions in Property \ref{property:instantiated_gc_consistent}.
+To do this, we will need to define set consistency.
 
 \begin{property}[Instantiated Set Consistency]
 A non-augmented set $\tt{A}_I$ in $\mathfrak{P}_{iGC}$ is \emph{weakly consistent} with $\tt{A}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{A}_{\exists,t,i} \subseteq \tt{A}_{I,t,i} \subseteq \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.
@@ -74,7 +107,7 @@ the following are true:
 \begin{enumerate}
 \item $\forall i=1,\dots,n_1$, $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$,
 \item $\forall i=1,\dots,n_2$, $\tt{B}_{i,I}^- \subseteq \tt{B}_{i,\top}^*$,
-\item $\forall i=1,\dots,n_3$, $\tt{C}_{i,I}^- =         \tt{C}_{i,\top}^*$,
+\item $\forall i=1,\dots,n_3$, $\tt{C}_{i,I}^- \cup (\tt{C}_{i,!} - \tt{C}_{i,I}) =         \tt{C}_{i,\top}^*$,
 \end{enumerate}
 \end{property}
 
@@ -150,6 +183,14 @@ In other words, $\tt{iGC}$ deletes a subset of $\tt{A}$ and $\tt{B}$ tuples that
 Note that the strong consistency of $\tt{iGC}$ with $\tt{GC}$ on $\tt{C}$ does not necessary imply the corresponding weak consistency, because the strong consistency holds under the strong assumption that $\tt{C}_{i,\exists} = \tt{C}_{i,I}$ instead of the weaker assumption that $\tt{C}_{i,\exists} \subseteq \tt{C}_{i,I} \subseteq \tt{C}_{i,\exists} \cup \tt{C}_{i,\top}$.
 Conversely, the weak consistency of $\tt{iGC}$ with $\tt{GC}$ on $\tt{A}$ and $\tt{B}$ does not necessary imply the corresponding strong consistency, because weak consistency only provides the weaker result that $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,\top}^*$ and $\tt{B}_{i,I}^- \subseteq \tt{B}_{i,\top}^*$ instead of the stronger requirement that $\tt{A}_{i,I}^- = \tt{A}_{i,\top}^*$ and $\tt{B}_{i,I}^- = \tt{B}_{i,\top}^*$.
 
+
+A natural property for instantiated garbage collection rules to have is to not delete any non-existent tuple.
+
+\begin{property}[Instantiated GC Conservation]\label{property:instantiated_gc_conservative}
+Let $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{iGC}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
+The instantiated GC rule $\tt{iGC}$ is \emph{conservative} if $\forall \tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}$, $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,I}$ and $\tt{A}_{i,!}^- = \pi_!(\tt{A}_{i,I})$.
+\end{property}
+
 We will require that any instantiated garbage collection rule $\tt{GCI}$ for $R$ be conservative and consistent with some logical garbage collection rule $\tt{GC}$, which is itself safe for $R$, conservative, and monotone\footnote{
   I believe that monotonicity is required only to show $\mathfrak{P}_{GC}$ is confluent in $\tt{A}_\top$, and $\mathfrak{P}_{iGC}$ is confluent in $\tt{A}_! - \tt{A}_I$.
 }.
@@ -186,17 +227,17 @@ Then,
 \end{align*}
 Hence, $\tt{iGCCopy}$ is weakly consistent with $\tt{GCCopy}$ on $\tt{A}$.
 
+\begin{example}[Union and Intersection GC]
+$\tt{iGCUnion}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \tt{iGCIntersect}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{B}_I, \tt{C}_I \cap \tt{B}_I \rangle$ is weakly consistent with $\tt{GCUnion}$ and $\tt{GCIntersect}$ on $\tt{A}$ and $\tt{C}$.
+\end{example}
+The proof of consistency is essentially the same as for $\tt{iGCCopy}$.
+
 \begin{example}[Project GC]
 $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\}$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCProject}$ on $\tt{A}$.
 \end{example}
 
 If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
 clearly $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
-
-\begin{example}[Union and Intersection GC]
-$\tt{iGCUnion}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \tt{iGCIntersect}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{B}_I, \tt{C}_I \cap \tt{B}_I \rangle$ is weakly consistent with $\tt{GCUnion}$ and $\tt{GCIntersect}$ on $\tt{A}$ and $\tt{C}$.
-\end{example}
-The proof of consistency is essentially the same as for $\tt{iGCCopy}$.
 
 \begin{example}[Select GC]
 $\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I)$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCSelect}$ on $\tt{A}$.
@@ -239,6 +280,7 @@ $\tt{iGCDR+}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{C}, \tt{C
 \end{example}
 
 \begin{example}[DR-: Negative Difference Reclamation]
+\label{ex:instantiated:dr-}
 $\tt{iGCDR-}(\tt{A}_E, \tt{C}_I; \tt{B}_I) = \langle (\tt{A}_I \cap \tt{C}_I, \pi_!(\tt{A}_I \cap \tt{C}_I), \tt{C}_I \cap (\tt{A}_! - \tt{A}_I)\rangle$ with $\mathbb{W}(\tt{iGCDR-}) = \{\tt{A}\}$ and $\mathbb{S}(\tt{iGCDR-}) = \{\tt{C}\}$ is strongly consistent with $\tt{GCDR-}$ on $\tt{A}$ and weakly consistent with $\tt{GCDR-}$ on $\tt{C}$.
 \end{example}
 Suppose $\tt{A}_{TS}$, $\tt{C}_{TS}$, $\tt{A}_E$, and $\tt{C}_I$ satisfy the conditions of Property \ref{property:instantiated_gc_consistent}.
@@ -250,10 +292,16 @@ Thus,
 = \tt{A}_\top \cup (\tt{A}_\exists \cap (\tt{C}_\exists \cup \tt{C}_\top))
 = \tt{A}_\top \cup ((\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top))
 \end{align*}
-which are exactly the tombstones of $\tt{GCDR-}$.
+which are exactly the tombstones of $\tt{GCDR-}$ for $\tt{A}_{TS}$, and
+\begin{align*}
+\tt{C}_I \cap (\tt{A}_! - \tt{A}_I) \subseteq (\tt{C}_\exists \cup \tt{C}_\top) \cap \tt{A}_\top \subseteq \tt{C}_\top \cup [(\tt{C}_\exists \cup \tt{C}_\top) \cap \tt{A}_\top]
+\end{align*}
+which are a subset of the tombstones of $\tt{GCDR-}$ for $\tt{C}_{TS}$.
 
 
 \subsection{Correctness}
+We will now show that $\mathfrak{P}_{iGC}$ produces the same output as $\mathfrak{P}$.
+
 \begin{thm}[Representation Correctness]
 \label{thm:instantiated_correctness}
 For any set $\tt{A}$, let $\tt{GC}$ be its logical GC rule in $\mathfrak{P}_{GC}$ and $\tt{iGC}$ be its instantiated GC rule in $\mathfrak{P}_{iGC}$.
@@ -404,9 +452,9 @@ If $\tt{A}$ is key-augmented and $\tt{A} \in \mathbb{W}$, \eqref{eq:thm:ins_corr
 \end{align*}
 If $\tt{A}$ is key-augmented and $\tt{A} \in \mathbb{S}$, \eqref{eq:thm:ins_correct:timestep} becomes
 \begin{align*}
-\tt{A}_{\exists,t,0}
+&\tt{A}_{\exists,t,0}\\
 =& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
-- \tt{A}_{\top,t-1} - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} 
+- \tt{A}_{\top,t-1} - (\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} 
 \\
 =& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
 -(\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(I.H.)}\\
@@ -467,7 +515,7 @@ If a tuple $x$ arrives in both $\tt{A}$ and $\tt{B}$, it is derived in $\tt{C}$ 
 A complete garbage collection must immediately reclaim $x$ from both $\tt{A}$ and $\tt{B}$, and eventually from $\tt{C}$ once its arrival at $\tt{D}$ has been determined.
 Now if $x$ arrives in $\tt{A}$ again but not in $\tt{B}$, we cannot determine from $\tt{A}$, $\tt{B}$ and $\tt{C}$ that it is safe to delete.
 While it is possible to deduce that $x$ in $\tt{A}$ is safe for deletion by examining $\tt{D}$, this would require multi-rule reasoning, and in the worst case, over the entire program $\tt{P}$.
-Doing so is complex and beyond the scope of our current work.fi
+Doing so is complex and beyond the scope of our current work.
 
 
 
