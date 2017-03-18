@@ -12,7 +12,7 @@ These relationships will demonstrate that $\mathfrak{P}_{iGC}$ produces the same
 
 \textbf{Logical Rewrite.}
 Key to the logical rewrite are `tombstone sets' which contain tuples that have been marked as `tombstoned', or safe for deletion.
-Every set $\tt{A}$ in $\mathfrak{P}$ has a corresponding tombstone set $\tt{A}_{TS} = (\tt{A}_\exists, \tt{A}_\top)$ in $\mathfrak{P}_{GC}$.
+Every set $\tt{A}$ in $\mathfrak{P}$ has a corresponding tombstone lattice $\tt{A}_{TS} = (\tt{A}_\exists, \tt{A}_\top)$ in $\mathfrak{P}_{GC}$, which is therefore a Bloom$^L$ program.
 Logical garbage collection rules are also added to $\mathfrak{P}_{GC}$ to mark tuples as being safe for deletion, by moving them from $\tt{A}_\exists$ to $\tt{A}_\top$.
 
 A simple induction on the execution of $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ demonstrates that we always have $\tt{A} = \tt{A}_\exists \cup \tt{A}_\top$.
@@ -29,6 +29,7 @@ The logical rewrite $\mathfrak{P}_{GC}$ does not in fact provide any storage rec
 To do that, we perform a second write of $\mathfrak{P}_{GC}$ into an \emph{instantiated garbage collection} program $\mathfrak{P}_{iGC}$.
 Unlike $\mathfrak{P}_{GC}$ which operates on tombstone sets $\tt{A}_{TS}$'s, $\mathfrak{P}_{iGC}$ operates on ordinary sets, denoted $\tt{A}_I$ to indicate that deletions are instantiated.
 Some of the sets $\tt{A}_I$ in $\mathfrak{P}_{iGC}$ are also augmented with primary keys $\tt{A}_!$, if primary keys are available and provide useful information for more efficient garbage collection.
+$\mathfrak{P}_{iGC}$ is thus also a Bloom$^L$ program like $\mathfrak{P}_{GC}$.
 Instantiated garbage collection rules are added to $\mathfrak{P}_{iGC}$ corresponding to logical garbage collection rules of $\mathfrak{P}$.
 
 On every set $\tt{A}$, the instantiated program $\mathfrak{P}_{iGC}$ either tries to maintain \emph{weak consistency} with $\mathfrak{P}_{GC}$ on $\tt{A}$, that is,
@@ -47,7 +48,7 @@ The decision of whether to maintain strong or weak consistency for the set $\tt{
 By construction, garbage collection rules in $\mathfrak{P}_{GC}$ are monotone, and only promote tuples from $\tt{A}_\exists$ to $\tt{A}_\top$.
 Hence, the CALM theorem implies that $\mathfrak{P}_{GC}$ requires no additional coordination over $\mathfrak{P}$ to achieve confluence.
 In particular, if $\mathfrak{P}$ is already monotone and coordination-free, then $\mathfrak{P}_{GC}$ is also monotone and coordination-free.
-This is the case if $\mathfrak{P}$ is written in monotone Edelweiss (i.e., the Bloom equivalent of Dedalus+), in which case $\mathfrak{P}_{iGC}$ is expressed in monotone Bloom$^L$.
+This is the case if $\mathfrak{P}$ is written in monotone Edelweiss (i.e., the Bloom equivalent of Dedalus$^+$), in which case $\mathfrak{P}_{iGC}$ is expressed in monotone Bloom$^L$.
 
 The coordination-freeness of $\mathfrak{P}_{iGC}$ is a more complex issue.
 Instantiated garbage collection rules do delete tuples but shrink the instantiated sets, and are not guaranteed to be monotone.
@@ -60,6 +61,15 @@ This argument is along the lines of \cite{ameloot2013relational}, which formaliz
 One may therefore choose to execute $\mathfrak{P}_{iGC}$ coordination-free, and still get confluence in the sets that one cares about.
 
 
+It is also worth highlighting the similarities and differences of our approach from that of \cite{marczak2012confluence}.
+In \cite{marczak2012confluence}, the syntax of the language was restricted such that sets are always growing\footnote{In Dedalus$^+$ formalism, all sets are `temporally inflationary'.}, and can therefore can be shown to be confluent.
+However, this is a sufficient but not necessary restriction on the language, and there are confluent programs (or programs that are confluent on particular important output sets) that are not expressible in the fully-confluent sublanguage of \cite{marczak2012confluence}.
+Any confluent garbage collection program would shrink sets and is thus not expressible in Dedalus$^+$.
+In contrast, we restrict the semantics of the garbage collection rules to ensure that derivations of tuples are not affected.
+Our program provides weaker guarantees of confluence, but is nevertheless confluent in the important output sets.
+One disadvantage of our approach is that confluence cannot be statically validated (as is possible with Dedalus$^+$);
+instead, the programmer provide a certificate that the semantics of the garbage collection rules are valid before a static analysis can determine confluence of our program.
+We provide these guarantees for some simple examples in this paper.
 
 
 

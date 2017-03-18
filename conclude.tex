@@ -3,3 +3,18 @@
 \section{Conclusion}
 \label{sec:conclude}
 
+In this work, we have introduced a formal and general framework for garbage collection for Bloom programs.
+Garbage collection rules in our framework obey the intuitive restriction imposed by Invariant \ref{inv:merge_gc} that deleted tuples should have no effect on any possible future executions of its corresponding Bloom rule.
+We have also argued that the garbage collection rules do not introduce the need for more coordination.
+In addition, we demonstrated that monotone Bloom rules can also be automatically garbage collected in our framework.
+This makes it possible to write coordination-free programs with automated garbage collection.
+
+Some open questions remain.
+Firstly, like Edelweiss \cite{conway2014edelweiss}, we have provided garbage collection for sets in Bloom, and it is unclear if the same approach extends to general join semilattices in Bloom$^L$.
+In fact, the very notion of storage reclamation for join semilattices is less well-defined than sets, for which smaller cardinalities correspond to lower storage.
+In contrast, there is no necessary correspondence between the storage required for a lattice element and its position within the lattice.
+
+Secondly, we have left open the matter of completeness.
+In general we believe that a maximal garbage collection would require reasoning about the entire distributed program state.
+Nevertheless, there may be more restricted notions of completeness, possibly from a node-local perspective, that could be formalized and proven.
+Being able to recognize completeness could help guide the programmer towards more storage-efficient implementations.

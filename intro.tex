@@ -3,27 +3,47 @@
 \section{Introduction}
 \label{sec:intro}
 
-1. Edelweiss presented garbage collection rules which used deferred deletes, and so cannot appeal to the analysis of \cite{marczak2012confluence} to prove confluence.
-No formal proofs were given; only intuitive arguments.
+Distributed and parallel systems are becoming increasingly commonplace.
+However, ensuring consistency is difficult and expensive as it requires distributed nodes to coordinate and wait for input and / or computation from other nodes before producing an output.
+The CALM theorem \cite{hellerstein2010declarative,ameloot2013relational} provides a sharp characterization of coordination-freeness: monotone queries are exactly those that can be computed without coordination.
+Programmers motivated to write coordination-free programs thus have a clear task to express their queries in a monotone fashion.
 
-2. Many of the GC opportunities of \cite{conway2014edelweiss} depended on non-monotone operations, in particular, set differences.
+This approach is taken in \cite{marczak2012confluence}, which introduced the spatio-temporal Datalog-like language of Dedalus, and specialized it to Dedalus$^+$, a sublanguage that disallows negation, mutation, and deletion\footnote{
+	More precisely, all facts in Dedalus$^+$ are persisted over all time, so nothing derived is ever `mutated' or `deleted'.
+}.
+The analysis of \cite{marczak2012confluence} proves that programs expressed in Dedalus$^+$ always produce the same output regardless of the order in which messages are sent and received; coordination is therefore unnecessary for such monotone programs.
 
-A. We formalize the intuitions of Edelweiss in a general framework.
-Within this framework, we prove that the GC programs are correct.
-We also explain how garbage collection is `confluent', despite not being expressed in the monotone sublanguage (Dedalus$^+$) defined in \cite{marczak2012confluence}.
+A related though different programming model for simplifying distributed consistency issues is to write systems avoiding mutable state, where processes accumulate and exchange immutable logs of messages or events, a model that has been termed Event Log Exchange (ELE).
+Edelweiss \cite{conway2014edelweiss} takes this approach, and specializes Bloom \cite{alvaro2011consistency}, an instantiation of Dedalus, to a sublanguage that omits primitives for mutating or deleting data.
+However, using only immutable state creates a separate problem of unbounded storage growth, since data is never deleted.
+To combat this problem, \cite{conway2014edelweiss} proposed garbage collection rules for some common operations.
+These rules are automatically added to the Edelweiss program and discards data that will never be useful in the future.
 
-B. We provide GC for more operations, including the non-monotone set differences discussed in \cite{conway2014edelweiss}, but also monotone operations such as projection, selection, join, unions, intersections.
+Unfortunately, \cite{conway2014edelweiss} suffers from a number of shortcomings.
+\begin{enumerate}
+\item Firstly, Edelweiss is often dependent on set negation for opportunities for garbage collection.
+The programmer is thus forced to give up coordination-freeness (through the use of negation) for the chance to reclaim storage, or vice versa.
+\item Secondly, garbage collection rules are by their very nature deletion operations, even if the original program is monotone.
+This makes it impossible to appeal to the analysis of \cite{marczak2012confluence} to prove coordination-freeness.
+In fact, since the CALM theorem states an equivalency of monotone queries and coordination-free programs, one should suspect that adding non-monotone deletion operations would introduce the need for coordination.
+\item Lastly, \cite{conway2014edelweiss} only provides intuitive arguments without formal proofs for why each individual garbage collection rule is correct.
+This ad-hoc approach does not provide a procedure for identifying new garbage collection rules and for proving their correctness.
+\end{enumerate}
+
+In this paper, we address the above shortcomings and move beyond the approach of \cite{conway2014edelweiss}.
+The intuitions behind our approach are (i) data that does not affect future computation can be safely reclaimed, and (ii) garbage collection does not affect the monotonicity of the output and coordination-freeness of the program.
+Our contributions are:
+\begin{enumerate}
+\item We formalize a general framework for garbage collection, and identify a class of garbage collection rules that may be safely added to the Bloom program without compromising correctness.
+\item We provide specific examples of garbage collection rules corresponding to monotone operations, thereby demonstrating that opportunities for storage reclamation are not dependent on non-monotone set negations.
+\item We explain why our garbage collection does not require additional coordination, despite using non-monotone deletions.
+\end{enumerate}
+
+In particular, our results will show that a monotone program can be automatically garbage collected while remaining coordination-free.
+We will also show that the garbage collection rules of \cite{conway2014edelweiss} are examples of the class of rules we identifies, and so our approach is a generalization of \cite{conway2014edelweiss}.
 
 
-It is worth highlighting the similarities and differences of our approach from that of \cite{marczak2012confluence}.
-In \cite{marczak2012confluence}, the syntax of the language was restricted such that sets are always growing\footnote{In Dedalus$^+$ formalism, all sets are `temporally inflationary'.}, and can therefore can be shown to be confluent.
-However, this is a sufficient but not necessary restriction on the language, and there are confluent programs (or programs that are confluent on particular important output sets) that are not expressible in the fully-confluent sublanguage of \cite{marczak2012confluence}.
-Any confluent garbage collection program would shrink sets and is thus not expressible in Dedalus$^+$.
-In contrast, we restrict the semantics of the garbage collection rules to ensure that derivations of tuples are not affected.
-Our program provides weaker guarantees of confluence, but is nevertheless confluent in the important output sets.
-One disadvantage of our approach is that confluence cannot be statically validated (as is possible with Dedalus$^+$);
-instead, the programmer provide a certificate that the semantics of the garbage collection rules are valid before a static analysis can determine confluence of our program.
-We provide these guarantees for some simple examples in this paper.
+
 
 
 The rest of this paper is organized as follows.
