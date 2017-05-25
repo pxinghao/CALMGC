@@ -17,11 +17,11 @@ A related though different programming model for simplifying distributed consist
 Edelweiss \cite{conway2014edelweiss} takes this approach, and specializes Bloom \cite{alvaro2011consistency}, an instantiation of Dedalus, to a sublanguage that omits primitives for mutating or deleting data.
 However, using only immutable state creates a separate problem of unbounded storage growth, since data is never deleted.
 To combat this problem, \cite{conway2014edelweiss} proposed garbage collection rules for some common operations.
-These rules are automatically added to the Edelweiss program and discards data that will never be useful in the future.
+These rules are automatically added to the Edelweiss program, discarding data that will never be useful in the future.
 
 Unfortunately, \cite{conway2014edelweiss} suffers from a number of shortcomings.
 \begin{enumerate}
-\item Firstly, Edelweiss is often dependent on set negation for opportunities for garbage collection.
+\item First, Edelweiss is often dependent on set negation for identifying opportunities for garbage collection.
 The programmer is thus forced to give up coordination-freeness (through the use of negation) for the chance to reclaim storage, or vice versa.
 \item Secondly, garbage collection rules are by their very nature deletion operations, even if the original program is monotone.
 This makes it impossible to appeal to the analysis of \cite{marczak2012confluence} to prove coordination-freeness.

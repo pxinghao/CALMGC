@@ -4,14 +4,14 @@
 Programming with immutable state has been a popular approach due to its simplicity of reasoning about distributed consistency.
 This has been partly motivated by the CALM theorem \cite{hellerstein2010declarative,ameloot2013relational} which states that monotone programs are those that may be executed without coordination.
 However, programs with immutable state suffer from unbounded growth of storage.
-Edelweiss \cite{conway2014edelweiss} was a first step towards addressing this problem by introducing automated garbage collection for some common operations
-Unfortunately, Edelweiss depended on non-monotone negations for opportunities for garbage collection and also used non-monotone deletions to reclaim storage, which appears to diverge from the original motivation of immutability, namely, to write monotone and thus coordination-free programs.
+Edelweiss \cite{conway2014edelweiss} was a first step towards addressing this problem by introducing automated garbage collection for some common operations.
+Unfortunately, Edelweiss depended on non-monotone negations and also used non-monotone deletions to reclaim storage, which appears to diverge from the original motivation of immutability, namely, to write monotone and thus coordination-free programs.
 
 
 In this work, we harmonize the notion of CALM consistency with garbage collection.
 The intuitions behind our approach are (i) data that does not affect future computation can be safely reclaimed, and (ii) garbage collection does not affect the monotonicity of the output and coordination-freeness of the program.
 We formalize these intuitions in a general framework defining a class of garbage collection rules, and provide an analysis of the correctness of our rules.
-We prove that our automated garbage collection requires no additional coordination, and in particular is coordination free whenever the original program is monotone.
+We prove that our automated garbage collection requires no additional coordination, and in particular is coordination-free whenever the original program is monotone.
 
 
 

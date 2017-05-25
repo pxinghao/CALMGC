@@ -3,7 +3,7 @@
 \section{Rewrites}
 \label{sec:rewrites}
 
-We present rewrites of an Edelweiss program $\mathfrak{P}$ into a logical garbage collection program $\mathfrak{P}_{GC}$ and an instantiated garbage collection program $\mathfrak{P}_{iGC}$.
+We present rewrites of an Edelweiss program $\mathfrak{P}$ into a logical garbage collection program $\mathfrak{P}_{GC}$ and an instantiated garbage collection program $\mathfrak{P}_{iGC}$. \jmh{We're going to have to deal with the fact that we have at least 6 programming languages here: Datalog, Dedalus, Dedalus+, Bloom, BloomL, Edelweiss. We probably need to pick one or 2 that cover our needs for formalism, and separately say how the results apply to the prior work. Natural candidate is to focus on Dedalus+ programs rewritten to Dedalus.}
 
 \setcounter{subsection}{-1}
 \subsection{Simplifying copy rewrite}
@@ -29,6 +29,7 @@ The resultant $\mathfrak{P}_0$ is essentially equivalent to $\mathfrak{P}$, in t
 In practice, the above rewrite should not increase storage significantly.
 One only needs to keep a single additional bit for each tuple and $R_i$ to record whether the tuple is in $\tt{A}_i$.
 
+\jmh{Rather than this paragraph, why not open the section by saying ``As a notational convenience, we would like to simplify the case where a relation appears on the rhs of multiple rules.''}
 This assumption is really only required so that we can specify garbage collection for each individual rule $R_i$ without having to reason about the logic of composing the garbage collection together.
 
 We also point out that the rules in Assumption \ref{ass:copy} can be combined into a single rule using the product lattice notation:

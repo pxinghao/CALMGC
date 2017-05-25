@@ -17,6 +17,7 @@
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{amsthm}
 \usepackage{listings}
+\usepackage{xcolor}
 
 \lstset{
   basicstyle=\ttfamily\footnotesize,
@@ -48,6 +49,7 @@
 
 \renewcommand{\tt}[1]{\ifmmode\text{\texttt{#1}}\else\texttt{#1}\fi}
 
+\newcommand{\jmh}[1]{{\textcolor{red}{[[#1 -- jmh]]}}}
 
 \title{Keep CALM and GC}
 \author{Xinghao Pan, Joseph Hellerstein}
