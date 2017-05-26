@@ -66,7 +66,7 @@ and RHS is not a channel.
 We require that, 
 $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists},\dots,\tt{A}_{n,\exists} \rangle,$
 $\quad
-\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle \geq \langle \tt{U}_1, \dots, \tt{U}_m \rangle$
+\forall \langle \widehat{\tt{U}}_1 , \dots, \widehat{\tt{U}}_m \rangle$ $\geq$ $\langle \tt{U}_1, \dots, \tt{U}_m \rangle$
 such that $\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top} = \dots = \widehat{\tt{U}}_1 \cap \tt{U}_{m,\top}$:
 \begin{align}
 &\tt{f(}\widehat{\tt{A}}_1,\dots,\widehat{\tt{A}}_n, \widehat{\tt{U}}_{1,\exists},\dots,\widehat{\tt{U}}_{n,\exists}\tt{)}
@@ -91,7 +91,7 @@ A logical garbage collection rule is `safe' if it does not tombstone any tuple f
 
 \begin{property}[GC Rule Output Respect]
 A garbage collection rule $\tt{GC}$ \emph{respects output relations} if it does not tombstone tuples from output relations.
-That is, letting $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle$ $=$ $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS};$ $\tt{B}_{TS},$ $\tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$, then whenever $\tt{A}_j$ is an output relation and $\tt{A}_{n,\top} = \emptyset$, it must be the case that $\tt{A}_{j,\top}^* = \emptyset$.
+That is, letting $\langle \tt{A}_{1,TS}^*,$ $\dots,$ $\tt{A}_{n,TS}^* \rangle$ $=$ $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS};$ $\tt{B}_{TS},$ $\tt{D}_{1,TS}, \dots, \tt{D}_{l,TS})$, then whenever $\tt{A}_j$ is an output relation and $\tt{A}_{n,\top} = \emptyset$, it must be the case that $\tt{A}_{j,\top}^* = \emptyset$.
 \end{property}
 
 \begin{property}[Merge GC Safety]
@@ -108,11 +108,11 @@ then $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*, \tt{U}_{1,TS}^*, \dots, \
 
 We will also require $\mathfrak{P}_{GC}$ to be monotone so that it can be executed coordination-free whenever $\mathfrak{P}$ is itself monotone.
 
-\begin{property}[GC Rule Monotonicity]$\qquad$
+\begin{property}[GC Rule Monotonicity]
 % Suppose $\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}, \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}$ satisfies Merge GC Invariant \ref{inv:merge_gc}.
 % Suppose that $\tt{A}'_{1,TS}, \dots, \tt{A}'_{n,TS}, \tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS}$ also satisfies Merge GC Invariant \ref{inv:merge_gc} and 
 Suppose that $\tt{A}'_{i,TS} \geq \tt{A}_{i,TS}$ and $\tt{B}'_{j,TS} \geq \tt{B}_{j,TS}$.
-Then, $\tt{GC}$ is \emph{monotone} if $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$ $\leq$ $\tt{GC}(\tt{A}'_{1,TS},$ $\dots,$ $\tt{A}'_{n,TS}; \tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS})$.
+Then, $\tt{GC}$ is \emph{monotone} if $\tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$ $\leq$ $\tt{GC}(\tt{A}'_{1,TS},$ $\dots,$ $\tt{A}'_{n,TS};$ $\tt{B}'_{1,TS}, \dots, \tt{B}'_{m,TS})$.
 \end{property}
 
 Lastly, it is natural to expect that logical garbage collection rules neither creates new tuples nor loses them.
@@ -120,7 +120,7 @@ Lastly, it is natural to expect that logical garbage collection rules neither cr
 \begin{property}[GC Rule Conservation]
 \label{property:gc_conservative}
 For a garbage collection rule $\tt{GC}$, denote
-$\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle = \tt{GC}(\tt{A}_{1,TS}, \dots, \tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$.
+$\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^* \rangle$ $=$ $\tt{GC}(\tt{A}_{1,TS},$ $\dots,$ $\tt{A}_{n,TS};$ $\tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$.
 Then, $\tt{GC}$ is \emph{conservative} if $\tt{A}_{j,\exists}^* \subseteq \tt{A}_{j,\exists}$ and $\tt{A}_{j,\exists}^* \cup \tt{A}_{j,\top}^* = \tt{A}_{j,\exists} \cup \tt{A}_{j,\top}$ for all $j=1,\dots,n$.
 That is, $\tt{GC}$ only moves tuples from $\exists$ to $\top$.
 \end{property}
@@ -212,7 +212,7 @@ By definition, $\pi_L(\tt{A}^*) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
 Hence, if $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfies the invariant, then $\pi_L(\tt{A}_\top \cup \tt{A}^*) = \pi_L(\tt{A}_\top) \cup \pi_L(\tt{A}^*) \subseteq \tt{B}_\exists \cup \tt{B}_\top$, so $\tt{GCProject}$ is safe for $R$. 
 
 \begin{example}[DR-: Negative Difference]
-\label{ex:logical:dr-}$\qquad$
+\label{ex:logical:dr-}
 Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge, and $\tt{A}$ is a table with primary keys.
 Then the rule $\tt{GCDR-}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*)\rangle$,
 where $\tt{A}^* = (\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)$ and $\tt{C}^* = (\tt{C}_\exists \cup \tt{C}_\top) \cap \tt{A}_\top$,

@@ -11,7 +11,8 @@ Thus, for $\mathfrak{P}_{iGC}$ to produce the correct output, we will require th
 We expand on this intuition with a couple of illustrative examples below.
 
 \subsection{Intuition}
-\begin{example}[Consistency for Projection]
+\begin{example}[Consistency for Projection]~
+
 Consider the projection $R: \tt{B} ~\tt{<op>}~ \pi_S(\tt{A})$, where $\tt{<op>}$ is a merge or deferred merge.
 Further suppose that $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$ are at a `weakly consistent' state with respect to $\tt{A}$ and $\tt{B}$, i.e.,
 $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and also
@@ -47,7 +48,8 @@ As with the previous example, the choice of tuples to delete maintains strong co
 We formalize the above intuitions in Property \ref{property:instantiated_gc_consistent}.
 To do this, we will need to define set consistency.
 
-\begin{property}[Instantiated Set Consistency]
+\begin{property}[Instantiated Set Consistency]~
+
 A non-augmented set $\tt{A}_I$ in $\mathfrak{P}_{iGC}$ is \emph{weakly consistent} with $\tt{A}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{A}_{\exists,t,i} \subseteq \tt{A}_{I,t,i} \subseteq \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.
 % A non-augmented set $\tt{B}_I$ in $\mathfrak{P}_{iGC}$ is \emph{strongly consistent} with $\tt{B}_{TS}$ in $\mathfrak{P}_{GC}$ if $\forall t, i$, $\tt{B}_{\exists,t,i} = \tt{B}_{I,t,i}$.
 
@@ -59,7 +61,8 @@ It is not possible to have a strongly consistent non-augmented set, since the me
 For strongly consistent key-augmented sets, this is prevented since tombstoned tuples are filtered from merging into $\tt{A}_I$ by checking against $\tt{A}_!$.
 
 
-\begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}
+\begin{property}[Instantiated GC Consistency]\label{property:instantiated_gc_consistent}~
+
 Consider a logical garbage collection rule $\tt{GC}$ that is safe for $R$, and a corresponding instantiated garbage collection rule $\tt{iGC}$.
 We say that
 $\tt{iGC}$ is \emph{weakly consistent}   with $\tt{GC}$ on a set $\tt{A} \in \mathbb{W}(\tt{iGC})$ if it preserves weak consistency   of $\tt{A}_I$                 with $\tt{A}_{TS}$;
@@ -229,20 +232,23 @@ Then,
 Hence, $\tt{iGCCopy}$ is weakly consistent with $\tt{GCCopy}$ on $\tt{A}$.
 
 \begin{example}[Union and Intersection GC]
+~
+
 $\tt{iGCUnion}(\tt{A}_I, \tt{C}_I; \tt{B}_I)$ $=$ $\tt{iGCIntersect}(\tt{A}_I, \tt{C}_I; \tt{B}_I)$ $=$ $\langle \tt{A}_I \cap \tt{B}_I, \tt{C}_I \cap \tt{B}_I \rangle$ is weakly consistent with $\tt{GCIntersect}$ and $\tt{GCUnion}$ on $\tt{A}$ and $\tt{C}$.
 \end{example}
 The proof of consistency is essentially the same as for $\tt{iGCCopy}$.
 
 \begin{example}[Project GC]
-$\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\}$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCProject}$ on $\tt{A}$.
+$\tt{iGCProject}(\tt{A}_I;$ $\tt{B}_I)$ $=$ $\{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\}$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCProject}$ on $\tt{A}$.
 \end{example}
 
 If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
-clearly $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
+clearly $\tt{iGCProject}(\tt{A}_I;$ $\tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
 
 \begin{example}[DR-: Negative Difference]
 \label{ex:instantiated:dr-}
-$\qquad$
+~
+
 $\tt{iGCDR-}(\tt{A}_E, \tt{C}_I; \tt{B}_I) = \langle (\tt{A}_I \cap \tt{C}_I, \pi_!(\tt{A}_I \cap \tt{C}_I), \tt{C}_I \cap (\tt{A}_! - \tt{A}_I)\rangle$ with $\mathbb{W}(\tt{iGCDR-}) = \{\tt{A}\}$ and $\mathbb{S}(\tt{iGCDR-}) = \{\tt{C}\}$ is strongly consistent with $\tt{GCDR-}$ on $\tt{A}$ and weakly consistent with $\tt{GCDR-}$ on $\tt{C}$.
 \end{example}
 Suppose $\tt{A}_{TS}$, $\tt{C}_{TS}$, $\tt{A}_E$, and $\tt{C}_I$ satisfy the conditions of Property \ref{property:instantiated_gc_consistent}.
