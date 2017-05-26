@@ -1,0 +1,380 @@
+%!TEX root = bloom_logical.tex
+
+\section{Proofs}
+\label{sec:proofs}
+
+
+\subsection{Proofs for Section \ref{sec:logical}}
+Proof for Lemma \ref{lem:merge_gc_inv}.
+
+\begin{proof}
+We prove the lemma for any given $R$ by an induction on $t$ and $i$.
+That is, we show for every $t$ and $i$,
+$\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle$,
+such that
+$\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top,t,i} = \dots =  \widehat{\tt{U}}_n \cap \tt{U}_{n,\top,t,i}$,
+\begin{align}
+&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+  \widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}
+\nonumber\\
+=&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}. \label{eq:mergegcinv_withtime}
+\end{align}
+At $t=0$, $i=0$, we have $\tt{A}_{k,\top,0} = \tt{U}_{j,\top,0} = \tt{B}_{\top,0} = \emptyset$ for all $j=1,\dots,m$ and $k=1,\dots,n$, so the statement \eqref{eq:mergegcinv_withtime} is trivially true.
+
+Assume that \eqref{eq:mergegcinv_withtime} is true at some $t$ and $i-1$.
+The assignment at $t$, $i$, is derived from applying a merge operator to the assignment at $t$, $i-1$, and may only grow $\tt{A}_{1,\exists}, \dots, \tt{A}_{n,\exists}$, $\tt{U}_{1,\exists}, \dots, \tt{U}_{m,\exists}$, and $\tt{B}_\exists$,
+but keeps $\tt{A}_{1,\top}, \dots, \tt{A}_{n,\top}$, $\tt{U}_{1,\top}, \dots, \tt{U}_{m,\top}$, and $\tt{B}_\top$ unchanged.
+This also implies that $\widehat{\tt{U}}_k \cap \tt{U}_{k,\top,t,i-1} = \emptyset \implies \widehat{\tt{U}}_k \cap \tt{U}_{k,\top,t,i-1} = \emptyset$.
+Write $\widetilde{\tt{B}} = \tt{B}_{\exists,t,i} - \tt{B}_{\exists,t,i-1}$.
+Then, $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n\rangle \geq \langle \tt{A}_{1,\exists,t,i},\dots,\tt{A}_{n,\exists,t,i} \rangle \geq \langle \tt{A}_{1,\exists,t,i-1},\dots,\tt{A}_{n,\exists,t,i-1} \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n\rangle \geq \langle \tt{U}_{1,\exists,t,i},\dots,\tt{U}_{n,\exists,t,i} \rangle \geq \langle \tt{U}_{1,\exists,t,i-1},\dots,\tt{U}_{n,\exists,t,i-1} \rangle$,
+such that
+$\forall j=1,\dots,m$, $\widehat{\tt{U}}_j \cap \tt{U}_{1,\top,t} = \emptyset$,
+\begin{align*}
+&\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+  \widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}\\
+=&
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1,
+    \dots,
+    \widehat{\tt{A}}_n,
+  \widehat{\tt{U}}_1,
+    \dots,
+    \widehat{\tt{U}}_n
+\tt{)}\\
+=&
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}\\
+=&
+\tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
+\cup
+\tt{f(}
+  \widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t},
+  \dots,
+  \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+  \widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t},
+  \dots,
+  \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
+\tt{)}
+\end{align*}
+where the second equality follows from the inductive hypothesis.
+
+Next, we show that if \eqref{eq:mergegcinv_withtime} is true at some fixed point $t-1$ and $i=\iota$, then it is also true at $t$, $i=0$.
+By design / assumption, there is only one garbage collection rule $\tt{GC}$ in $\mathfrak{P}_{GC}$ that has any of $\tt{A}_{1,TS},\dots,\tt{A}_{n,TS}$ on its LHS.
+Note that we can express $\forall j=1,\dots,n$,
+\begin{align*}
+(\tt{A}_{j,\exists,t,0}, \tt{A}_{j,\top,t})
+= (\tt{A}_{j,\exists,t-1,\iota}, \tt{A}_{j,\top,t-1})
+\cup (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)
+\cup \bigcup_{k=1}^l (g_k(\tt{C}_{k1,TS,t-1,\iota}, \dots, \tt{C}_{kn_k,TS,t-1,\iota}), \emptyset)
+\end{align*}
+where $\langle \tt{A}_{1,TS}^*, \dots, \tt{A}_{n,TS}^*\rangle = \tt{GC}(\tt{A}_{1,TS,t-1,\iota}, \dots, \tt{A}_{n,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{m,TS,t-1,\iota})$.
+By the conservative property of $\tt{GC}$, $(\tt{A}_{j,\exists,t-1,\iota}, \tt{A}_{j,\top,t-1}) \leq (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)$, so the above equation can be written as
+\begin{align*}
+(\tt{A}_{j,\exists,t,0}, \tt{A}_{j,\top,t})
+= (\tt{A}_{j,\exists}^*, \tt{A}_{j,\top}^*)
+\cup \bigcup_{k=1}^l (g_k(\tt{C}_{k1,TS,t-1,\iota}, \dots, \tt{C}_{kn_k,TS,t-1,\iota}), \emptyset)
+\end{align*}
+which implies $\tt{A}_{j,\exists,t,0} \supseteq \tt{A}_{j,\exists}^*$ and $\tt{A}_{j,\top,t} = \tt{A}_{j,\top}^*$.
+
+The same holds for $\tt{U}_j$ for $j=1,\dots,m$, which further implies that $\widehat{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \emptyset \implies \widehat{\tt{U}}_j \cap \tt{U}_{j,\top,t} = \emptyset$.
+
+Also, by the monotonicity of $\tt{<+}$, we see that $\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}$.
+Let $\widetilde{\tt{B}} = (\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}) - (\tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1})$.
+Note that
+$\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t} \supseteq \tt{f}\tt{(}\tt{A}_{\exists,1,t-1,\iota} \cup \tt{A}_{1,\top,t-1},\dots,\tt{A}_{n,\exists,t-1,\iota} \cup \tt{A}_{n,\top,t-1}, \tt{U}_{1,\exists,t-1,\iota} \cup \tt{U}_{1,\top,t-1},\dots,\tt{U}_{n,\exists,t-1,\iota} \cup \tt{U}_{n,\top,t-1}\tt{)}$ ---
+if $R$ is a merge rule, it is true because $t,\iota$ is a fixed point;
+if $R$ is a deferred merge rule, then the inclusion holds by definition of $\tt{B}_{TS,t,0}$.
+
+Observe that $\forall \langle \widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n \rangle$ $\geq$ $\langle \tt{A}_{1,\exists,t,0}, \dots, \tt{A}_{n,\exists,t,0} \rangle$ $\geq$ $\langle \tt{A}_{1,\exists}^*, \dots, \tt{A}_{n,\exists}^* \rangle$,
+$\forall \langle \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_n \rangle$ $\geq$ $\langle \tt{U}_{1,\exists,t,0}, \dots, \tt{U}_{n,\exists,t,0} \rangle$ $\geq$ $\langle \tt{U}_{1,\exists}^*, \dots, \tt{U}_{n,\exists}^* \rangle$,
+such that $\emptyset = \widetilde{\tt{U}}_j \cap \tt{U}_{j,\top}^* = \widetilde{\tt{U}}_{j,\top,t}$ for all $j = 1,\dots,m$,
+\begin{align*}
+&
+\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}
+\cup \tt{f}(\widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n, \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m)
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(\widehat{\tt{A}}_1, \dots, \widehat{\tt{A}}_n, \widehat{\tt{U}}_1, \dots, \widehat{\tt{U}}_m)
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top}^*, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top}^*,
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top}^*, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top}^*)
+&\text{(\tt{GC} safety)}
+\\
+=&~
+\widetilde{\tt{B}} \cup \tt{B}_{\exists,t-1,\iota} \cup \tt{B}_{\top,t-1}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t}, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t}, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t})
+\\
+=&~
+\tt{B}_{\exists,t,0} \cup \tt{B}_{\top,t}
+\cup \tt{f}(
+\widehat{\tt{A}}_1 \cup \tt{A}_{1,\top,t}, \dots, \widehat{\tt{A}}_n \cup \tt{A}_{n,\top,t},
+\widehat{\tt{U}}_1 \cup \tt{U}_{1,\top,t}, \dots, \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t})
+\end{align*}
+which establishes that the Merge GC Invariant \ref{inv:merge_gc} holds at $t$ and $i=0$.
+\end{proof}
+
+
+
+Proof for Theorem \ref{thm:equivalence_of_sets}.
+
+\begin{proof}
+We will again prove the theorem via induction.
+
+Clearly this is true for $t=i=0$.
+
+Now suppose that it is true at some $t$ and $i-1$, and we will show it holds at $t$ and $i$.
+During the instantaneous run, the only rules that we are concerned with are merges where $\tt{A}$ appears on the LHS.
+If the rule is of the form $\tt{A} ~\tt{<=}~ \overline{\tt{C}}$ with a channel on the RHS, then
+\begin{align*}
+\tt{A}_{t,i}
+= \tt{A}_{t,i-1} \cup \overline{\tt{C}}_{t}
+= \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \overline{\tt{C}}_{t}
+= \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}.
+\end{align*}
+If the merge rule is of the form $\tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{C}_1,\dots,\tt{C}_n\tt{)}$, then
+\begin{align*}
+\tt{A}_{t,i}
+&= \tt{A}_{t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,t,i-1},\dots,\tt{C}_{n,t,i-1}\tt{)}\\
+&= \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1}\cup\tt{C}_{1,\top,t},\dots,\tt{C}_{n,\exists,t,i-1}\cup\tt{C}_{n,\top,t}\tt{)}\\
+&= \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t},
+\end{align*}
+where we used the inductive hypothesis in the second equality.
+
+Suppose $\mathfrak{P}$ reaches a fixed point for time $t$ at $i=\iota$.
+We will next show that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
+We must first establish that the rewritten program will reach a fixed point for timestep $t$.
+
+\begin{claim}
+If $\mathfrak{P}$ reaches a fixed point at $t$, $\mathfrak{P}_{GC}$ also reaches a fixed point.
+(This statement should be made more formal.)
+\end{claim}
+\begin{claimproof}
+From the previous argument, we know that $\tt{A}_{\exists,t,j} \cup \tt{A}_{\top,t,i} = \tt{A}_{t,j}$ for all $j \geq \iota$.
+But $\tt{A}_{t,j} = \tt{A}_{t,\iota}$ and $\tt{A}_{\top,t,i} = \tt{A}_{\top,t,0}$ are constant independent of $j$, which implies $\tt{A}_{\exists,t,j} = \tt{A}_{\exists,t,\iota}$.
+Hence, $\mathfrak{P}_{GC}$ also reaches at fixed point at $t$, $i=\iota$.
+\end{claimproof}
+
+Finally, suppose we have $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle ~\tt{<+}~ \tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
+Then,
+\begin{align*}
+\tt{A}_{t,0}
+=& \tt{A}_{t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,t-1,\iota},\dots,\tt{C}_{j,n_j,t-1,\iota}\tt{)}\\
+=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+\cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
+=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+\cup \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*
+\cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
+=& \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}.
+\end{align*}
+Thus, we have established that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
+\end{proof}
+
+
+
+Proof for Theorem \ref{thm:coord-free}.
+
+\begin{proof}
+Rules in $\mathfrak{P}$ either correspond to rules in $\mathfrak{P}$, or are new garbage collection rules.
+In the first case, we replace the rule $R: \tt{B} ~\tt{<op>}~ \tt{f}(\tt{A}_1,\dots,\tt{A}_n\tt{)}$ with $(\tt{B}_\exists, \tt{B}_\top) ~\tt{<op>}~ (\tt{f}(\tt{A}_{1,\exists} \cup \tt{A}_{1,\top}, \dots, \tt{A}_{n,\exists} \cup \tt{A}_{n,\top} \tt{)}$, which requires a mapping $(\tt{X}_\exists, \tt{X}_\top) \mapsto \tt{X}_\exists \cup \tt{X}_\top$ and the projection $\tt{X} \mapsto (\tt{X}, \emptyset)$, both of which are monotone.
+Hence, the corresponding rule in $\mathfrak{P}$ is monotone if $\tt{f}$ is monotone.
+In the second case, our $\tt{GC}$ rules are monotone, and involve a deferred merge, and thus do not require additional coordination.
+
+Suppose $\mathfrak{P}$ is confluent in all sets.
+Theorem \ref{thm:equivalence_of_sets} implies $\tt{A}_{\exists} \cup \tt{A}_\top = \tt{A}$ is confluent in $\mathfrak{P}_{GC}$.
+The only rules in $\mathfrak{P}_{GC}$ that promote tuples from $\exists$ to $\top$ are GC rules; since these rules are monotone, the tombstone lattices are also confluent.
+\end{proof}
+
+
+\subsection{Proofs for Section \ref{sec:instantiated}}
+
+Proof for Theorem \ref{thm:instantiated_correctness}.
+
+\begin{proof}
+Our proof proceeds by induction on $t$ and $i$.
+
+At $t=0$, $i=0$, we initialize $\tt{A}_{I,0,0} = \tt{A}_{0,0} = \tt{A}_{\exists,0,0} = \tt{A}_{\exists,0,0} \cup \tt{A}_{\top,0}$, so \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold trivially.
+
+Assume that \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold at some $t$ and $i-1$.
+The assignment at $t$, $i$ is obtained by executing some merge rule $R$ on the assignment at $t$, $i-1$.
+If $\tt{A}$ does not appear on the LHS of $R$, then we are done because $\tt{A}_{E,t,i} = \tt{A}_{E,t,i-1}$ and $\tt{A}_{TS,t,i} = \tt{A}_{TS,t,i-1}$.
+If $\tt{A}$ appears on the LHS of $R$ and the RHS is not a channel, then WLOG let $R: \tt{A} ~\tt{<=}~ \tt{f}\tt{(}\tt{C}_1, \dots, \tt{C}_n\tt{)}$.
+\begin{align}
+\tt{A}_{\exists,t,i}
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)}) - \tt{A}_{\top,t}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,I,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)} \cup \tt{A}_{\top,t}) - \tt{A}_{\top,t}\nonumber\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)} \cup \tt{A}_{\top,t}) - \tt{A}_{\top,t} & \text{(Lemma \ref{lem:merge_gc_inv})} \label{eq:thm:ins_correct:invariant1}\\
+=& (\tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - \tt{A}_{\top,t}.\label{eq:thm:ins_correct:instant}
+\end{align}
+We were able to apply Lemma \ref{lem:merge_gc_inv} in \eqref{eq:thm:ins_correct:invariant1} because by the inductive hypothesis, $\tt{C}_{j,I,t,i-1} \supseteq \tt{C}_{j,\exists,t,i-1}$, and if $\tt{C}_j \in \mathbb{S}$ then $\tt{C}_{j,I,t,i-1} \cap \tt{C}_{j,\top,t} = \tt{C}_{j,\exists,t,i-1} \cap \tt{C}_{j,\top,t} = \emptyset$.
+
+If $\tt{A}$ is non-augmented, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+&&\subseteq&& \tt{A}_{\exists,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}
+&&\subseteq&& \tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}
+&&=&& \tt{A}_{I,t,i}.
+\end{align*}
+
+If $\tt{A}$ is key-augmented and $\tt{A} \in \mathbb{W}$, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+&&\subseteq&& (\tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - (\tt{A}_{!,t,i-1} - \tt{A}_{I,t,i-1})
+&&=&& \tt{A}_{I,t,i}.
+\end{align*}
+
+If $\tt{A}$ is key-augmented and $\tt{A} \in \mathbb{S}$, we apply the inductive hypothesis to \eqref{eq:thm:ins_correct:instant},
+\begin{align*}
+\tt{A}_{\exists,t,i}
+&&=&& (\tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}) - (\tt{A}_{!,t,i-1} - \tt{A}_{I,t,i-1})
+&&=&& \tt{A}_{I,t,i}.
+\end{align*}
+
+In all cases, we see that
+\begin{align*}
+\tt{A}_{I,t,i}
+\subseteq& \tt{A}_{I,t,i-1} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)}\\
+\subseteq& \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)} & \text{(I.H.)}\\
+=& \tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)} & \text{(Lemma \ref{lem:merge_gc_inv})}\\
+=& \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}
+\end{align*}
+For key-augmented $\tt{A}$, we also have
+\begin{align*}
+\tt{A}_{!,t,i}
+&= \tt{A}_{!,t,i-1} \cup \pi_!(\tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t}) \cup \pi_!(\tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,I,t,i-1}, \dots, \tt{C}_{n,I,t,i-1}\tt{)})\\
+&= \pi_!(\tt{A}_{\exists,t,i-1} \cup \tt{A}_{\top,t} \cup \tt{f}\tt{(}\tt{C}_{1,\exists,t,i-1} \cup \tt{C}_{1,\top,t}, \dots, \tt{C}_{n,\exists,t,i-1} \cup \tt{C}_{n,\top,t}\tt{)}) & \text{(Lemma \ref{lem:merge_gc_inv})}\\
+&= \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}).
+\end{align*}
+Otherwise, $\tt{A}$ appears on the LHS of $R$ and the RHS of $R$ is a channel $\overline{\tt{C}}$.
+The argument above goes through by replacing $\tt{f}$ with $\overline{\tt{C}}$.
+
+Suppose $\mathfrak{P}_{GC}$ reaches a finite fixed point for time $t$ at $i=\iota$.
+We first establish that $\mathfrak{P}_{iGC}$ also eventually reaches a fixed point for $t$.
+\begin{claim}
+If $\mathfrak{P}_{GC}$ reaches a finite fixed point at $t$, $\iota$, then $\mathfrak{P}_{iGC}$ also eventually reaches a fixed point.
+\end{claim}
+\begin{claimproof}
+By the above argument, $\tt{A}_{I,t,j} \subseteq \tt{A}_{\exists,t,j} \cup \tt{A}_{\top,t} = \tt{A}_{\exists,t,\iota} \cup \tt{A}_{\top,t}$ for all $j \geq \iota$.
+Since $\tt{<=}$ can only increase $\tt{A}_{I,t,j}$ and $\tt{A}_{I,t,j}$ is upper bounded, $\mathfrak{P}_{iGC}$ must also reach a fixed point for $t$ after a finite number of steps after $\iota$.
+\end{claimproof}
+
+Finally, suppose \eqref{eq:thm_instantiated_correctness_set} and \eqref{eq:thm_instantiated_correctness_key} hold at $t-1$, $\iota$ which is a fixed point of $\mathfrak{P}_{iGC}$ for time $t-1$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $~\tt{<+}~$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Correspondingly, $\tt{A}_E$ appears in (at most) one instantiated GC rule $\langle \tt{A}_E, \tt{D}_{1,E}, \dots, \tt{D}_{k,E} \rangle$ $~\tt{<-}~$ $\tt{GCI}(\tt{A}_{E},$ $\tt{D}_{1,E}, \dots, \tt{D}_{k,E}; \tt{B}_{1,E}, \dots, \tt{B}_{k',E})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle$ $= \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota};$ $\tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and
+$\langle \tt{A}_E^-, \tt{D}_{1,E}^-, \dots, \tt{D}_{k,E}^- \rangle = \tt{GCI}(\tt{A}_{E,t-1,\iota}, \tt{D}_{1,E,t-1,\iota}, \dots, \tt{D}_{k,E,t-1,\iota};$ $\tt{B}_{1,E,t-1,\iota},$ $\dots, \tt{B}_{k',E,t-1,\iota})$.
+By the conservative property of $\tt{GC}$, we have that $\tt{A}_{\exists}^* \subseteq \tt{A}_{\exists,t-1,\iota}$, $\tt{A}_{\top}^* \supseteq \tt{A}_{\top,t-1}$, and $\tt{A}_{\exists}^* \cup \tt{A}_{\top}^* = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,}$.
+Furthermore, we have that $\tt{A}_I^- \subseteq \tt{A}_{T}^*$ if $\tt{iGC}$ is weakly consistent with $\tt{GC}$ on $\tt{A}$.
+Hence,
+\begin{align}
+&\tt{A}_{\exists,t,0}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_\exists^* \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^*\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^* & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^* & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^* & \text{(Lemma \ref{lem:merge_gc_inv})}\nonumber\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_\top^*. & \text{(Property \ref{property:gc_conservative})} \label{eq:thm:ins_correct:timestep}
+\end{align}
+If $\tt{A}$ is non-augmented, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align}
+\tt{A}_{\exists,t,0}
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_\top^*. & \text{(Property \ref{property:gc_conservative})}\nonumber\\
+\subseteq& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} \nonumber\\% \label{eq:thm:inst_correct:timestep_0}\\
+\subseteq& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_I^- & \text{(I.H.)} \nonumber\\% \label{eq:thm:inst_correct:timestep_1}\\
+=& \tt{A}_{I,t,0} \nonumber
+\end{align}
+If $\tt{A}$ is key-augmented and $\tt{A} \in \mathbb{W}$, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align*}
+\tt{A}_{\exists,t,0}
+\subseteq& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} 
+\\
+\subseteq& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+-(\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(I.H.)}\\
+=& \tt{A}_{I,t,0}
+\end{align*}
+If $\tt{A}$ is key-augmented and $\tt{A} \in \mathbb{S}$, \eqref{eq:thm:ins_correct:timestep} becomes
+\begin{align*}
+&\tt{A}_{\exists,t,0}\\
+=& \left(\tt{A}_{\exists,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+- \tt{A}_{\top,t-1} - (\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(Property \ref{property:instantiated_gc_consistent})} 
+\\
+=& \left(\tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)
+-(\tt{A}_{!,t-1,\iota} - \tt{A}_{I,t-1,\iota}) - \tt{A}_I^- & \text{(I.H.)}\\
+=& \tt{A}_{I,t,0}
+\end{align*}
+In all cases, we see that
+\begin{align*}
+&\tt{A}_{I,t,0}\\
+\subseteq&~ \tt{A}_{I,t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)} \\
+\subseteq&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)} & \text{(I.H.)} \\
+=&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Lemma \ref{lem:merge_gc_inv})} \\
+=&~ \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \tt{A}_\exists^* \cup \tt{A}_\top^* \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)} & \text{(Property \ref{property:gc_conservative})}\\
+=&~ \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}
+\end{align*}
+Furthermore, for $\tt{A}_!$, we have
+\begin{align*}
+\tt{A}_{!,t,0}
+&= \tt{A}_{!,t-1,\iota} \cup \pi_!\left(\bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right)\\
+&= \pi_!\left(\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,I,t-1,\iota}, \dots, \tt{C}_{j,n_j,I,t-1,\iota}\tt{)}\right) & \text{(I.H.)} \\
+&= \pi_!(\tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}) & \text{(Lemma \ref{lem:merge_gc_inv})}
+\end{align*}
+where in the final equality we have used the same argument as above for sets without primary keys.
+\end{proof}

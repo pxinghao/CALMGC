@@ -1,12 +1,12 @@
-\documentclass{article}
+\documentclass{sig-alternate-10}
 
 %% Language and font encodings
 \usepackage[english]{babel}
 \usepackage[utf8x]{inputenc}
 \usepackage[T1]{fontenc}
 
-%% Sets page size and margins
-\usepackage[top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+% %% Sets page size and margins
+% \usepackage[top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
 
 %% Useful packages
 \usepackage{amsmath}
@@ -15,7 +15,7 @@
 \usepackage{graphicx}
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
-\usepackage{amsthm}
+% \usepackage{amsthm}
 \usepackage{listings}
 \usepackage{xcolor}
 
@@ -79,14 +79,19 @@
 \input{instantiated}
 
 
-\input{async_gc}
-
 
 \input{conclude}
 
-
-
 \bibliographystyle{abbrv}
 \bibliography{calmbib}
+\balancecolumns
+
+
+\newpage\onecolumn
+\appendix
+\input{async_gc}
+
+\input{app_proofs}
+
 
 \end{document}
