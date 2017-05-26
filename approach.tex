@@ -34,9 +34,9 @@ $\mathfrak{P}_{iGC}$ is thus also a Bloom$^L$ program like $\mathfrak{P}_{GC}$ \
 Instantiated garbage collection rules are added to $\mathfrak{P}_{iGC}$ corresponding to logical garbage collection rules of $\mathfrak{P}$.
 
 For every set $\tt{A}$, the instantiated program $\mathfrak{P}_{iGC}$ either tries to \jmh{tries to? or does?} maintain \emph{weak consistency} \jmh{I'd call this ``conservative equivalence'', or simply an ``upper bound''} with $\mathfrak{P}_{GC}$ on $\tt{A}$, that is,
-\[ \tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top = \tt{A},\]
+$\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top = \tt{A}$,
 or it maintains \emph{strong consistency} \jmh{``exact equivalence''? or simple ``equivalence''} on $\tt{A}$, that is,
-\[ \tt{A}_\exists = \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top = \tt{A}.\]
+$\tt{A}_\exists = \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top = \tt{A}$.
 Intuitively, tuples in $\tt{A}_\exists$ are important for future derivations and must be kept in $\tt{A}_I$.
 Tombstones $\tt{A}_\top$ of a weakly consistent $\tt{A}$ can be selectively deleted; for a strongly consistent $\tt{A}$, the tombstones $\tt{A}_\top$ must be completely removed from $\tt{A}_I$, or else could interfere in future derivations.
 When the above relationship holds \jmh{which relationship?}, Invariant \ref{inv:merge_gc} is a statement that executing a Bloom operator in $\mathfrak{P}_{iGC}$ using instantiated sets $\tt{A}_I$'s produces the same outcome as the equivalent execution in $\mathfrak{P}$ using the complete sets $\tt{A}$. \jmh{Some shuffling of content moved this way before the definition of the Invariant!}

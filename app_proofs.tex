@@ -200,9 +200,9 @@ Hence, $\mathfrak{P}_{GC}$ also reaches at fixed point at $t$, $i=\iota$.
 \end{claimproof}
 
 Finally, suppose we have $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$.
-Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A} ~\tt{<+}~ \tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
-Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle ~\tt{<+}~ \tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
-Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota}; \tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
+Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A}$ $\tt{<+}$ $\tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $\tt{<+}$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota};$ $\tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
 Then,
 \begin{align*}
 \tt{A}_{t,0}
@@ -312,7 +312,7 @@ Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}
 Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $~\tt{<+}~$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
 Correspondingly, $\tt{A}_E$ appears in (at most) one instantiated GC rule $\langle \tt{A}_E, \tt{D}_{1,E}, \dots, \tt{D}_{k,E} \rangle$ $~\tt{<-}~$ $\tt{GCI}(\tt{A}_{E},$ $\tt{D}_{1,E}, \dots, \tt{D}_{k,E}; \tt{B}_{1,E}, \dots, \tt{B}_{k',E})$.
 Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle$ $= \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota};$ $\tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and
-$\langle \tt{A}_E^-, \tt{D}_{1,E}^-, \dots, \tt{D}_{k,E}^- \rangle = \tt{GCI}(\tt{A}_{E,t-1,\iota}, \tt{D}_{1,E,t-1,\iota}, \dots, \tt{D}_{k,E,t-1,\iota};$ $\tt{B}_{1,E,t-1,\iota},$ $\dots, \tt{B}_{k',E,t-1,\iota})$.
+$\langle \tt{A}_E^-, \tt{D}_{1,E}^-, \dots, \tt{D}_{k,E}^- \rangle$ $=$ $\tt{GCI}(\tt{A}_{E,t-1,\iota}, \tt{D}_{1,E,t-1,\iota}, \dots, \tt{D}_{k,E,t-1,\iota};$ $\tt{B}_{1,E,t-1,\iota},$ $\dots, \tt{B}_{k',E,t-1,\iota})$.
 By the conservative property of $\tt{GC}$, we have that $\tt{A}_{\exists}^* \subseteq \tt{A}_{\exists,t-1,\iota}$, $\tt{A}_{\top}^* \supseteq \tt{A}_{\top,t-1}$, and $\tt{A}_{\exists}^* \cup \tt{A}_{\top}^* = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1,}$.
 Furthermore, we have that $\tt{A}_I^- \subseteq \tt{A}_{T}^*$ if $\tt{iGC}$ is weakly consistent with $\tt{GC}$ on $\tt{A}$.
 Hence,

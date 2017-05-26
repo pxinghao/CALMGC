@@ -23,7 +23,7 @@ Our instantiated garbage collection rule must identify safe-for-deletion tuples 
 Note that this choice $\tt{A}^-$ of tuples to delete maintains weak consistency of $\tt{A}$, such that $\tt{A}_\exists - \tt{A}^* \subseteq \tt{A}_I - \tt{A}^- \subseteq (\tt{A}_\exists - \tt{A}^*) \cup (\tt{A}_\top \cup \tt{A}^*)$.
 \end{example}
 
-\begin{example}[Consistency for Negative Difference Reclamation]
+\begin{example}[Consistency for DR-]
 Suppose we are in the setting of Example \ref{ex:logical:dr-}, and that $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$ are at a weakly consistent state for $\tt{B}$ and $\tt{C}$, and a strongly consistent state for $\tt{A}$, i.e.,
 $\tt{A}_I = \tt{A}_\exists$,
 $\tt{B}_\exists \subseteq \tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, and
@@ -76,6 +76,7 @@ Formally, let
 \tt{A}_{1,TS}, \dots, \tt{A}_{n_1,TS},
 \tt{B}_{1,TS}, \dots, \tt{B}_{n_2,TS},
 \tt{C}_{1,TS}, \dots, \tt{C}_{n_3,TS};
+\\&\qquad
 \tt{D}_{1,TS}, \dots, \tt{D}_{n_4,TS},
 \tt{E}_{1,TS}, \dots, \tt{E}_{n_5,TS}
 ),\\
@@ -88,13 +89,14 @@ Formally, let
 \tt{A}_{1,I}, \dots, \tt{A}_{n_1,I},
 \tt{B}_{1,E}, \dots, \tt{B}_{n_2,E},
 \tt{C}_{1,E}, \dots, \tt{C}_{n_3,E};
+\\&\qquad
 \tt{D}_{1,I}, \dots, \tt{D}_{n_4,I},
 \tt{E}_{1,E}, \dots, \tt{E}_{n_5,E}
 )
 \end{align*}
 where $\tt{A}_1, \dots, \tt{A}_{n_1}, \tt{B}_1, \dots, \tt{B}_{n_2} \in \mathbb{W}(\tt{iGC})$ and $\tt{C}_1, \dots, \tt{C}_{n_3} \in \mathbb{S}(\tt{iGC})$.
 
-We say that $\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on $\tt{A}_1, \dots, \tt{A}_{n_1}, \tt{B}_1, \dots, \tt{B}_{n_2}$, and \emph{strongly consistent} with $\tt{GC}$ on $\tt{C}_1, \dots, \tt{C}_{n_3}$, if under the conditions
+We say that $\tt{iGC}$ is \emph{weakly consistent} with $\tt{GC}$ on $\tt{A}_1,$ $\dots,$ $\tt{A}_{n_1},$ $\tt{B}_1,$ $\dots,$ $\tt{B}_{n_2}$, and \emph{strongly consistent} with $\tt{GC}$ on $\tt{C}_1,$ $\dots,$ $\tt{C}_{n_3}$, if under the conditions
 \begin{enumerate}
 \item $\forall i=1,\dots,n_1$, $\tt{A}_{i,\exists} \subseteq \tt{A}_{i,I} \subseteq \tt{A}_{i,\exists} \cup \tt{A}_{i,\top}$,
 \item $\forall i=1,\dots,n_2$, $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt{B}_{i,\top}$, and $\tt{B}_{i,!} = \pi_!(\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})$,
@@ -188,7 +190,7 @@ A natural property for instantiated garbage collection rules to have is to not d
 
 \begin{property}[Instantiated GC Conservation]\label{property:instantiated_gc_conservative}
 Let $(\tt{A}_{1,E}^-, \dots, \tt{A}_{n,E}^-) = \tt{iGC}(\tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E})$.
-The instantiated GC rule $\tt{iGC}$ is \emph{conservative} if $\forall \tt{A}_{1,E}, \dots, \tt{A}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}$, $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,I}$ and $\tt{A}_{i,!}^- = \pi_!(\tt{A}_{i,I})$.
+The instantiated GC rule $\tt{iGC}$ is \emph{conservative} if $\forall \tt{A}_{1,E},$ $\dots,$ $\tt{A}_{n,E};$ $\tt{B}_{1,E},$ $\dots,$ $\tt{B}_{m,E}$, $\forall i=1,\dots,n$: $\tt{A}_{i,I}^- \subseteq \tt{A}_{i,I}$ and $\tt{A}_{i,!}^- = \pi_!(\tt{A}_{i,I})$.
 \end{property}
 
 We will require that any instantiated garbage collection rule $\tt{GCI}$ for $R$ be conservative and consistent with some logical garbage collection rule $\tt{GC}$, which is itself safe for $R$, conservative, and monotone\footnote{
@@ -201,7 +203,7 @@ We will require that any instantiated garbage collection rule $\tt{GCI}$ for $R$
 We now present some examples of instantiated GC rules that are consistent with the logical GC rules presented in Section \ref{sec:logical:example}.
 
 \begin{example}[Copy GC]
-$\tt{iGCCopy}(\tt{A}_I; \tt{B}_{1,I}, \dots, \tt{B}_{m,I}) = \tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}$ with $\mathbb{W}(\tt{iGCCopy}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCCopy}$ on $\tt{A}$.
+$\tt{iGCCopy}(\tt{A}_I;$ $\tt{B}_{1,I},$ $\dots,$ $\tt{B}_{m,I}) = \tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}$ with $\mathbb{W}(\tt{iGCCopy}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCCopy}$ on $\tt{A}$.
 \end{example}
 Suppose
 $\tt{A}_\exists \subseteq \tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$
@@ -210,9 +212,8 @@ $\tt{B}_{i,\exists} \subseteq \tt{B}_{i,I} \subseteq \tt{B}_{i,\exists} \cup \tt
 Then,
 \begin{align*}
 \tt{A}_I \cap \bigcap_{i=1}^m \tt{B}_{i,I}
-% &
-~\subseteq~
-(\tt{A}_\exists \cup \tt{A}_\top) \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})
+&\subseteq
+(\tt{A}_\exists \cup \tt{A}_\top) \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\\
 % \\
 % &
 % ~=~
@@ -220,7 +221,7 @@ Then,
 % \cup
 % \left(\tt{A}_\top \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)\\
 % &
-~\subseteq~
+&\subseteq
 \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)
 \cup
 \tt{A}_\top.
@@ -228,7 +229,7 @@ Then,
 Hence, $\tt{iGCCopy}$ is weakly consistent with $\tt{GCCopy}$ on $\tt{A}$.
 
 \begin{example}[Union and Intersection GC]
-$\tt{iGCUnion}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \tt{iGCIntersect}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{B}_I, \tt{C}_I \cap \tt{B}_I \rangle$ is weakly consistent with $\tt{GCUnion}$ and $\tt{GCIntersect}$ on $\tt{A}$ and $\tt{C}$.
+$\tt{iGCUnion}(\tt{A}_I, \tt{C}_I; \tt{B}_I)$ $=$ $\tt{iGCIntersect}(\tt{A}_I, \tt{C}_I; \tt{B}_I)$ $=$ $\langle \tt{A}_I \cap \tt{B}_I, \tt{C}_I \cap \tt{B}_I \rangle$ is weakly consistent with $\tt{GCIntersect}$ and $\tt{GCUnion}$ on $\tt{A}$ and $\tt{C}$.
 \end{example}
 The proof of consistency is essentially the same as for $\tt{iGCCopy}$.
 
@@ -239,48 +240,9 @@ $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subset
 If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
 clearly $\tt{iGCProject}(\tt{A}_I; \tt{B}_I) = \{a \in \tt{A}_I ~:~ \pi_S(\{a\}) \subseteq \tt{B}_I\} \subseteq \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \pi_S(\{a\}) \subseteq \tt{B}_\exists \cup \tt{B}_\top\} \subseteq \tt{GCProject}(\tt{A}_{TS}; \tt{B}_{TS})$.
 
-\begin{example}[Select GC]
-$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I)$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCSelect}$ on $\tt{A}$.
-\end{example}
-If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
-simple relational algebra demonstrates that
-$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I) \subseteq \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)) = \tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS})$.
-
-\begin{example}[Linear GC]
-$\tt{iGCAll}(\tt{A}_I; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}) = \tt{A}_I$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCAll}$ on $\tt{A}$.
-\end{example}
-
-\begin{example}[Join with punctuations]
-$\tt{iGCJoin}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},I}^-, \tt{C}_I^-, \tt{P}_{\tt{C},I}^-\rangle$, where
-\begin{align*}
-\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
-\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
-\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\}\\
-\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
-\end{align*}
-with $\mathbb{W}(\tt{iGCJoin}) = \{\tt{A}, \tt{P}_\tt{A}, \tt{C}, \tt{P}_\tt{A}\}$ is weakly consistent with $\tt{GCJoin}$ on $\tt{A}$, $\tt{P}_\tt{A}$, $\tt{C}$ and $\tt{P}_\tt{C}$.
-\end{example}
-Proof of consistency of $\tt{iGCJoin}$ with $\tt{GCJoin}$ is straightforward and thus omitted.
-As noted before, $p_a \in \tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I} \implies p_a \in \tt{P}_{\tt{A},\top} \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$, so we can also tombstone tuples whose keys match $\tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I}$:
-
-\begin{example}[Join with punctuations, version 2]
-$\tt{iGCJoinV2}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},E}^-, \tt{C}_I^-, \tt{P}_{\tt{C},E}^-\rangle$, where
-\begin{align*}
-\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\} \cup \{a \in \tt{A}_I ~:~ a.k_a \in \tt{P}_{\tt{A},!} - \pi_!(\tt{P}_{\tt{A},I})\}\\
-\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
-\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\} \cup \{c \in \tt{C}_I ~:~ c.k_c \in \tt{P}_{\tt{C},!} - \pi_!(\tt{P}_{\tt{C},I})\}\\
-\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I} \text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
-\end{align*}
-with $\mathbb{W}(\tt{iGCJoin}) = \{\tt{A}, \tt{P}_\tt{A}, \tt{C}, \tt{P}_\tt{A}\}$ is weakly consistent with $\tt{GCJoin}$ on $\tt{A}$, $\tt{P}_\tt{A}$, $\tt{C}$ and $\tt{P}_\tt{C}$.
-\end{example}
-
-
-\begin{example}[DR+: Positive Difference Reclamation]
-$\tt{iGCDR+}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{C}, \tt{C}_I\rangle$ with $\mathbb{W}(\tt{iGCDR+}) = \{\tt{A}, \tt{C}\}$ is weakly consistent with $\tt{GCDR+}$ on both $\tt{A}$ and $\tt{C}$.
-\end{example}
-
-\begin{example}[DR-: Negative Difference Reclamation]
+\begin{example}[DR-: Negative Difference]
 \label{ex:instantiated:dr-}
+$\qquad$
 $\tt{iGCDR-}(\tt{A}_E, \tt{C}_I; \tt{B}_I) = \langle (\tt{A}_I \cap \tt{C}_I, \pi_!(\tt{A}_I \cap \tt{C}_I), \tt{C}_I \cap (\tt{A}_! - \tt{A}_I)\rangle$ with $\mathbb{W}(\tt{iGCDR-}) = \{\tt{A}\}$ and $\mathbb{S}(\tt{iGCDR-}) = \{\tt{C}\}$ is strongly consistent with $\tt{GCDR-}$ on $\tt{A}$ and weakly consistent with $\tt{GCDR-}$ on $\tt{C}$.
 \end{example}
 Suppose $\tt{A}_{TS}$, $\tt{C}_{TS}$, $\tt{A}_E$, and $\tt{C}_I$ satisfy the conditions of Property \ref{property:instantiated_gc_consistent}.
@@ -288,9 +250,9 @@ In particular, $\tt{A}_{TS}$ and $\tt{C}_{TS}$ satisfies Invariant \ref{inv:merg
 Thus,
 \begin{align*}
 (\tt{A}_! - \tt{A}_I) \cup (\tt{A}_I \cap \tt{C}_I)
-= \tt{A}_\top \cup (\tt{A}_\exists \cap \tt{C}_\exists)
-= \tt{A}_\top \cup (\tt{A}_\exists \cap (\tt{C}_\exists \cup \tt{C}_\top))
-= \tt{A}_\top \cup ((\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top))
+&= \tt{A}_\top \cup (\tt{A}_\exists \cap \tt{C}_\exists)\\
+&= \tt{A}_\top \cup (\tt{A}_\exists \cap (\tt{C}_\exists \cup \tt{C}_\top))\\
+&= \tt{A}_\top \cup ((\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top))
 \end{align*}
 which are exactly the tombstones of $\tt{GCDR-}$ for $\tt{A}_{TS}$, and
 \begin{align*}

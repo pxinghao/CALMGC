@@ -1,0 +1,178 @@
+%!TEX root = bloom_logical.tex
+
+\section{Additional Examples}
+\label{sec:examples}
+
+\subsection{Examples of Logical GC Rules}
+\label{sec:examples:logical}
+\begin{example}[Trivial GC]
+$\tt{GCNone}(\tt{A}_{1,TS},$ $\dots,$ $\tt{A}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \langle \tt{A}_{1,TS}, \dots, \tt{A}_{n,TS} \rangle$.
+\end{example}
+The trivial GC returns the tombstone lattices unchanged.
+If $\tt{A}_1, \dots, \tt{A}_n$ are all output relations, then $\tt{GCNone}$ is the only garbage collection rule that respects output relations.
+
+\begin{example}[Union GC]
+\label{ex:union_gc}
+Consider the union $R: \tt{B} ~\tt{<op>}~ \tt{A} \cup \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then $\tt{GCUnion}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*) \rangle$ where $\tt{A}^* = \tt{A}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ and $\tt{C}^* = \tt{C}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ is safe for $R$.
+\end{example}
+Invariant \ref{inv:merge_gc} for the union rule reduces to $\tt{A}_\top \cup \tt{C}_\top \subseteq \tt{A}_\exists \cup \tt{C}_\exists \cup \tt{B}_\exists \cup \tt{B}_\top$.
+Then,
+\begin{align*}
+&\tt{A}_\top \cup \tt{A}^* \cup \tt{C}_\top \cup \tt{A}^*\\
+&\quad\subseteq\quad \tt{A}_\exists \cup \tt{C}_\exists \cup \tt{B}_\exists \cup \tt{B}_\top\\
+&\quad=\quad (\tt{A}_\exists \cap (\tt{B}_\exists \cup \tt{B}_\top)^c) \cup (\tt{C}_\exists \cap (\tt{B}_\exists \cup \tt{B}_\top)^c) \cup \tt{B}_\exists \cup \tt{B}_\top\\
+&\quad=\quad (\tt{A}_\exists - \tt{A}^*) \cup (\tt{C}_\exists - \tt{A}^*) \cup \tt{B}_\exists \cup \tt{B}_\top\\
+\end{align*}
+so $\tt{GCUnion}$ is safe for $R$.
+
+\begin{example}[Intersection GC]
+\label{ex:intersection_gc}
+Consider the union $R: \tt{B} ~\tt{<op>}~ \tt{A} \cap \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then $\tt{GCIntersect}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*) \rangle$ where $\tt{A}^* = \tt{A}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ and $\tt{C}^* = \tt{C}_\exists \cap  (\tt{B}_\exists \cup \tt{B}_\top)$ is safe for $R$.
+\end{example}
+Note that $\tt{GCIntersect} = \tt{GCUnion}$, both of which tombstones tuples from $\tt{A}_\exists$ and $\tt{C}_\exists$ after they have appeared in $\tt{B}_\exists \cup \tt{B}_\top$.
+In this case, Invariant \ref{inv:merge_gc} reduces to $\tt{A}_\top \in \tt{B}_\exists \cup \tt{B}_\top$ and $\tt{C}_\top \in \tt{B}_\exists \cup \tt{B}_\top$.
+Then $\tt{A}_\top \cup \tt{A}^* \subseteq \tt{B}_\exists \cup \tt{B}_\top$ and $\tt{C}_\top \cup \tt{C}^* \subseteq \tt{B}_\exists \cup \tt{B}_\top$, so $\tt{GCIntersect}$ is safe for $R$.
+
+\begin{example}[Select GC]
+Consider the selection $R: \tt{B} ~\tt{<op>}~ \sigma_P(\tt{A})$, where $\tt{<op>}$ is either a merge or deferred merge.
+Then $\tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS}) = (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*)$ where $\tt{A}^* = \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))$ is safe for $R$.
+\end{example}
+Similar to Example \ref{ex:project_gc}, the Merge GC Invariant \ref{inv:merge_gc} for selection reduces to $\sigma_P(\tt{A}_\top) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
+If $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfy the invariant, then
+\begin{align*}
+&\sigma_P(\tt{A}_\top \cup \tt{A}^*)\\
+&= \sigma_P(\tt{A}_\top) \cup \sigma_P(\sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)))\\
+&= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
+&= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
+&\subseteq \tt{B}_\exists \cup \tt{B}_\top,
+\end{align*}
+so $\tt{GCSelect}$ is safe for $R$.
+
+\begin{example}[Linear GC]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{f}(\tt{A})$, where $\tt{f}$ is a linear function, i.e., $\tt{f}(\tt{A}) = \bigcup_{a\in \tt{A}} \tt{f}(\{a\})$.
+Then $\tt{GCAll}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$ $=$ $(\emptyset,$ $\tt{A}_\exists \cup \tt{A}_\top)$ is safe for $R$.
+\end{example}
+Since $\tt{f}$ is linear, Invariant \ref{inv:merge_gc} reduces to $\tt{f}\tt{(}\tt{A}_\top\tt{}) \subseteq \tt{B}_\exists \cup \tt{B}_\top$, but this is true under the condition $\tt{B}_\exists \cup \tt{B}_\top \supseteq \tt{f}\tt{(}\tt{A}_{\exists} \cup \tt{A}_{\top}\tt{)} = \tt{f}\tt{(}\tt{A}_\exists\tt{}) \cup \tt{f}\tt{(}\tt{A}_\top\tt{})$.
+Thus, Invariant \ref{inv:merge_gc} is trivially true for linear $\tt{f}$.
+Intuitively, a tuple $a \in \tt{A}_\exists$ is independent of all other tuples when $\tt{f}$ is linear, and hence, its complete effects will have been realized in $\tt{B}$ (either through a merge or deferred merge) by the point at which we perform garbage collection.
+Therefore, we can always reclaim the entire set without impacting our results.
+
+In particular, observe that the copy, union, select, and project rules of previous examples are all linear, and thus can be fully reclaimed at the end of each timestep.
+
+\begin{example}[Join GC]
+\label{ex:join_gc_no_manifests}
+Consider the join $R: \tt{B} ~\tt{<op>}~ \tt{A} \bowtie_{\tt{A}.k_a = \tt{C}.k_c} \tt{C}$, where $\tt{<op>}$ is either a merge or deferred merge.
+The only garbage collection rule that is safe for $R$ is the trivial $\tt{GCTrivial}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle \tt{A}_{TS}, \tt{C}_{TS} \rangle$.
+\end{example}
+Without additional information, one cannot guarantee that a tuple in $\tt{A}$ will not match any future tuple in $\tt{C}$ and vice versa.
+In some cases, however, one may be provided with the specific information that no more tuples matching the attribute will ever appear.
+
+Formally, let $\mathcal{X}$ be the domain of possible tuples for a table $\tt{X}$, and denote the powerset of $\mathcal{X}$ as $\mathbb{P}(\mathcal{X})$.
+Also let $\mathcal{K}$ be the domain of possible values of an attribute $\tt{X}.k$.
+A manifest $p = (p.k, p.\tt{X}) \in \mathcal{K} \times \mathbb{P}(\mathcal{X})$ maps a key in $\mathcal{K}$ to a subset of $\mathbb{P}(\mathcal{X})$.
+We denote by $\tt{X}$ by $\tt{P}_\tt{X}$ a table of manifests (with $k$ as its primary key) for $\tt{X}$, and say it is consistent with $\tt{X}$ if $\forall p \in \tt{P}_\tt{X}$, $p.\tt{X} \supseteq \{x \in \tt{X} ~:~ x.k = p.k\}$.
+We will always assume that manifest tables are always consistent.
+
+In the join rule above, we can reclaim from $\tt{A}$ given manifests on $\tt{C}$ and vice versa:
+
+\begin{example}[Join with manifests]
+Consider the join in Example \ref{ex:join_gc_no_manifests}, now augmented with manifest tables $\tt{P}_\tt{A}$ and $\tt{P}_\tt{C}$.
+(If manifests are not available, we can always let $\tt{P} = \emptyset$ with no loss of generality.)
+The garbage collection rule $\tt{GCJoin}(\tt{A}_{TS},$ $\tt{P}_{\tt{A},TS},$ $\tt{C}_{TS},$ $\tt{P}_{\tt{C},TS};$ $\tt{B}_{TS})$ $=$ $\langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), (\tt{P}_{\tt{A},\exists} - \tt{P}_\tt{A}^*, \tt{P}_{\tt{A},\top} \cup \tt{P}_\tt{A}^*), (\tt{C}_\exists - \tt{C}^*, \tt{C}_\top \cup \tt{C}^*), (\tt{P}_{\tt{C},\exists} - \tt{P}_\tt{C}^*, \tt{P}_{\tt{C},\top} \cup \tt{P}_\tt{C}^*) \rangle$, with
+\begin{align*}
+\tt{A}^* &= \{a \in \tt{A}_\exists \cup \tt{A}_\top ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top},
+% \\&
+\text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top},
+% \\&
+\text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
+\tt{C}^* &= \{c \in \tt{C}_\exists \cup \tt{C}_\top ~:~ \exists p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top},
+% \\&
+\text{ such that } (p_a.k_a = c.k_c) \wedge \left(p_a.\tt{A} \times \{c\} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}\\
+\tt{P}_\tt{A}^* &= \{p_a \in \tt{P}_{\tt{A},\exists} \cup \tt{P}_{\tt{A},\top} ~:~ \exists p_c \in \tt{P}_{\tt{C},\exists} \cup \tt{P}_{\tt{C},\top}
+% \\&
+\text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_\exists \cup \tt{B}_\top\right)\}
+\end{align*}
+is safe for the join.
+\end{example}
+In words, a tuple $a$ can be tombstoned if it matches a punctuation $p_c$ in $\tt{P}_\tt{C}$ \emph{and} the result of joining $\{a\}$ with $\tt{C}$ is already effected in $\tt{B}_{TS}$.
+Hence, any $c \in \tt{C}$ either does not match $a$, or is already joined with $a$ in $\tt{B}$ and so will not affect any future join computation.
+In addition, we tombstone a punctuation $p_a$ if it matches a punctuation $p_c$ and the join of their sets $p_a.\tt{A} \times p_c.\tt{C}$ is already effected in $\tt{B}_{TS}$.
+It is a simple exercise to show that $\tt{GCJoin}$ tombstones a punctuation $p_a$ only when its set $p_a.\tt{A}$ is tombstoned (or does not exist yet), i.e., $(p_a \in \tt{P}_{\tt{A},\top}) \implies \tt{A}_\exists \cap p_a.\tt{A} = \emptyset \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$.
+
+\begin{example}[DR+: Positive Difference]
+Consider the rule $R: \tt{B} ~\tt{<op>}~ \tt{A} - \tt{C}$, where $\tt{<op>}$ is a merge or deferred merge.
+Then the rule $\tt{GCDR+}(\tt{A}_{TS}, \tt{C}_{TS};$ $\tt{B}_{TS}) = \langle (\tt{A}_\exists - \tt{A}^*, \tt{A}_\top \cup \tt{A}^*), \tt{C}_{TS}\rangle$
+where $\tt{A}^* = (\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{C}_\exists \cup \tt{C}_\top)$
+is safe for $R$.
+\end{example}
+For set differences, the Merge GC Invariant \ref{inv:merge_gc} reduces to
+$\forall \widehat{\tt{A}} \supseteq \tt{A}_\exists, \forall \widehat{\tt{C}} \supseteq \tt{C}_\exists$: $\widehat{\tt{A}} - \widehat{\tt{C}} = (\widehat{\tt{A}} \cup \tt{A}_\top) - (\widehat{\tt{C}} \cup \tt{C}_\top)$.
+In the case where $\widehat{\tt{A}} = \tt{A}_\exists$ and $\widehat{\tt{C}} = \tt{C}_\exists$, it implies that $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$;
+in the case where $\widehat{\tt{A}} = \tt{A}_\exists \cup \tt{C}_\top$ and $\widehat{\tt{C}} = \tt{A}_\exists \cup \tt{C}_\exists$, it implies that $\tt{C}_\top = \emptyset$.
+Conversely $\tt{C}_\top = \emptyset$ and $\tt{A}_\top \subseteq \tt{C}_\exists \cup \tt{C}_\top$ suffices to satisfy the invariant.
+One can now easily verify that $\tt{GCDR+}$ maintains the invariant.
+
+
+\subsection{Examples of Instantiated GC Rules}
+\label{sec:examples:instantiated}
+
+\begin{example}[Select GC]
+$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I)$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCSelect}$ on $\tt{A}$.
+\end{example}
+If $\tt{A}_I \subseteq \tt{A}_\exists \cup \tt{A}_\top$ and $\tt{B}_I \subseteq \tt{B}_\exists \cup \tt{B}_\top$, then
+simple relational algebra demonstrates that
+$\tt{iGCSelect}(\tt{A}_I; \tt{B}_I) = \sigma_{\neg P}(\tt{A}_I) \cup (\sigma_P(\tt{A}_I) \cap \tt{B}_I) \subseteq \sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)) = \tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS})$.
+
+\begin{example}[Linear GC]
+$\tt{iGCAll}(\tt{A}_I;$ $\tt{B}_{1,E},$ $\dots,$ $\tt{B}_{m,E})$ $=$ $\tt{A}_I$ with $\mathbb{W}(\tt{iGCProject}) = \{\tt{A}\}$ is weakly consistent with $\tt{GCAll}$ on $\tt{A}$.
+\end{example}
+
+\begin{example}[Join with punctuations]
+$\tt{iGCJoin}(\tt{A}_I,$ $\tt{P}_{\tt{A},I},$ $\tt{C}_I,$ $\tt{P}_{\tt{C},E};$ $\tt{B}_I)$ $=$ $\langle \tt{A}_I^-, \tt{P}_{\tt{A},I}^-, \tt{C}_I^-, \tt{P}_{\tt{C},I}^-\rangle$, where
+\begin{align*}
+\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I},
+% \\&
+\text{ such that } (a.k_a = p_c.k_c) \wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I},
+% \\&
+\text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I},
+% \\&
+\text{ such that } (p_a.k_a = c.k_c) \wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\}\\
+\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I},
+% \\&
+\text{ such that } (p_a.k_a = p_c.k_c) \wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
+\end{align*}
+with $\mathbb{W}(\tt{iGCJoin}) = \{\tt{A}, \tt{P}_\tt{A}, \tt{C}, \tt{P}_\tt{A}\}$ is weakly consistent with $\tt{GCJoin}$ on $\tt{A}$, $\tt{P}_\tt{A}$, $\tt{C}$ and $\tt{P}_\tt{C}$.
+\end{example}
+Proof of consistency of $\tt{iGCJoin}$ with $\tt{GCJoin}$ is straightforward and thus omitted.
+As noted before, $p_a \in \tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I} \implies p_a \in \tt{P}_{\tt{A},\top} \implies \sigma_{\tt{A}.k_a = p_a.k_a}(\tt{A}_\exists) = \emptyset$, so we can also tombstone tuples whose keys match $\tt{P}_{\tt{A},!} - \tt{P}_{\tt{A},I}$:
+
+\begin{example}[Join with punctuations, version 2]
+$\tt{iGCJoinV2}(\tt{A}_I, \tt{P}_{\tt{A},I}, \tt{C}_I, \tt{P}_{\tt{C},E}; \tt{B}_I) = \langle \tt{A}_I^-, \tt{P}_{\tt{A},E}^-, \tt{C}_I^-, \tt{P}_{\tt{C},E}^-\rangle$, where
+\begin{align*}
+\tt{A}_I^- &= \{a \in \tt{A}_I ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (a.k_a = p_c.k_c)
+% \\&
+\wedge \left(\{a\} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\} \cup \{a \in \tt{A}_I ~:~ a.k_a \in \tt{P}_{\tt{A},!} - \pi_!(\tt{P}_{\tt{A},I})\}\\
+\tt{P}_\tt{A}^- &= \{p_a \in \tt{P}_{\tt{A},I} ~:~ \exists p_c \in \tt{P}_{\tt{C},I}, \text{ such that } (p_a.k_a = p_c.k_c)
+% \\&
+\wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}\\
+\tt{C}_I^- &= \{c \in \tt{C}_I ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = c.k_c)
+% \\&
+\wedge \left(\{c\} \times p_a.\tt{A} \subseteq \tt{B}_I\right)\} \cup \{c \in \tt{C}_I ~:~ c.k_c \in \tt{P}_{\tt{C},!} - \pi_!(\tt{P}_{\tt{C},I})\}\\
+\tt{P}_\tt{C}^- &= \{p_c \in \tt{P}_{\tt{C},I} ~:~ \exists p_a \in \tt{P}_{\tt{A},I}, \text{ such that } (p_a.k_a = p_c.k_c)
+% \\&
+\wedge \left(p_a.\tt{A} \times p_c.\tt{C} \subseteq \tt{B}_I\right)\}
+\end{align*}
+with $\mathbb{W}(\tt{iGCJoin}) = \{\tt{A}, \tt{P}_\tt{A}, \tt{C}, \tt{P}_\tt{A}\}$ is weakly consistent with $\tt{GCJoin}$ on $\tt{A}$, $\tt{P}_\tt{A}$, $\tt{C}$ and $\tt{P}_\tt{C}$.
+\end{example}
+
+
+\begin{example}[DR+: Positive Difference]
+$\tt{iGCDR+}(\tt{A}_I, \tt{C}_I; \tt{B}_I) = \langle \tt{A}_I \cap \tt{C}, \tt{C}_I\rangle$ with $\mathbb{W}(\tt{iGCDR+}) = \{\tt{A}, \tt{C}\}$ is weakly consistent with $\tt{GCDR+}$ on both $\tt{A}$ and $\tt{C}$.
+\end{example}
+
+

@@ -7,7 +7,8 @@ We present rewrites of an Edelweiss program $\mathfrak{P}$ into a logical garbag
 
 \setcounter{subsection}{-1}
 \subsection{Simplifying copy rewrite}
-Before presenting the rewrites $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$, We first make the following simplifying assumption about $\mathfrak{P}$.
+Before presenting the rewrites $\mathfrak{P}_{GC}$ and $\mathfrak{P}_{iGC}$, we first make the following simplifying assumption
+ % about $\mathfrak{P}$.
 \begin{assumption}
 \label{ass:copy}
 Let $\tt{A}$ be a table or channel in $\mathfrak{P}$ appearing in multiple rules
@@ -53,7 +54,7 @@ We then present a second rewrite where the reclamation is instantiated; in the s
 
 For clarity, we also omit garbage collection for asynchronous rules.
 Doing so will allow us to develop simpler analyses that illuminate the overall approach.
-We will then revisit garbage collection for asynchronous rules in later sections, building on the approach in this section.
+We will then revisit garbage collection for asynchronous rules in Appendix \ref{sec:async_gc}, building on the approach in this section.
 
 We begin with a program $\mathfrak{P}$ with rules $R_1, \dots, R_n$, and rewrite it into a GC program $\mathfrak{P}_{GC}$.
 We assume that all tables in $\mathfrak{P}$ are persistent (with implicit rules $\tt{A} ~\tt{<+}~ \tt{A}$), but will make any persistence in $\mathfrak{P}$ explicit.
@@ -117,7 +118,7 @@ Suppose also that $\tt{GC}$ is a garbage collection rule that is safe for $R$.
 We will then add the following GC rule to $\mathfrak{P}_{GC}$:
 \begin{align}
 \langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{m,TS} \rangle
-\quad\tt{<+}\quad
+~\tt{<+}~
 \tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{m,TS}; \tt{B}_{TS}).
 \end{align}
 By Assumption \ref{ass:copy}, $\tt{C}_1,\dots,\tt{C}_m$ also do not appear in the input to any other rule of $\mathfrak{P}$.
@@ -127,7 +128,7 @@ In that case, we add the garbage collection rule
 \begin{align}
 (\tt{A}_\exists, \tt{A}_\top) \quad\tt{<+}\quad \tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})
 \end{align}
-where $\tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}) = \left(\tt{A}_\exists - \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top}), \tt{A}_\top \cup \left(\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})\right)\right)$
+where $\tt{GCCopy}(\tt{A}_{TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS})$ $=$ $(\tt{A}_\exists$ $-$ $\bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top}),$ $\tt{A}_\top \cup (\tt{A}_\exists \cap \bigcap_{i=1}^m (\tt{B}_{i,\exists} \cup \tt{B}_{i,\top})))$
 We will show $\tt{GCCopy}$ is safe for each $R_i$.
 
 We highlight that we only add at most one GC rule for each $\tt{A}$ in $\mathfrak{P}_{GC}$\footnote{
@@ -179,20 +180,20 @@ otherwise we simply use the non-augmented representation $\tt{A}_I$ without keys
 This choice is dependent on the instantiated garbage collection rules, which we describe in the following subsection.
 For convenience, we will write $\tt{A}_E$ to mean $(\tt{A}_I, \tt{A}_!)$ if $\tt{A}$ has a key-augmented representation, and $\tt{A}_I$ if $\tt{A}$ has a non-augmented representation.
 In both cases, we persist $\tt{A}_E$ with the deferred merge rule
-\[\tt{A}_E \quad\tt{<+}\quad \tt{A}_E.\]
+$\tt{A}_E \quad\tt{<+}\quad \tt{A}_E$.
 
 
 \subsubsection{Garbage collection}
 A garbage collection rule in $\mathfrak{P}_{GC}$
 \begin{align*}
-\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS} \rangle
-\quad\tt{<+}\quad
+&\langle \tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS} \rangle\\
+&~\tt{<+}~
 \tt{GC}(\tt{A}_{TS}, \tt{C}_{1,TS}, \dots, \tt{C}_{n,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{m,TS}).
 \end{align*}
 is replaced in $\mathfrak{P}_{iGC}$ by the instantiated garbage collection rule
 \begin{align*}
-\langle \tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E} \rangle
-\quad\tt{<-}\quad
+&\langle \tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E} \rangle\\
+&~\tt{<-}~
 \tt{iGC}(\tt{A}_E, \tt{C}_{1,E}, \dots, \tt{C}_{n,E}; \tt{B}_{1,E}, \dots, \tt{B}_{m,E}).
 \end{align*}
 
@@ -218,7 +219,7 @@ To simplify notation, we will use $\mathbb{S} := \mathbb{S}(\mathfrak{P}_{iGC})$
 
 \subsubsection{Merge, Deferred Merge, Asynchronous Merge}
 A rule $R$ in $\mathfrak{P}$,
-\[\tt{B} \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}\]
+$\tt{B} \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_1,\dots,\tt{A}_n\tt{)}$
 where $\tt{<op>}$ is one of $\tt{<=}$, $\tt{<+}$ or $\tt{<}\sim$, is replaced in $\mathfrak{P}_{iGC}$ by
 \[\tt{B}_I \quad\tt{<op>}\quad \tt{f}\tt{(}\tt{A}_{1,I},\dots,\tt{A}_{n,I}\tt{)}\]
 if $\tt{B}$ has no primary keys, and otherwise
