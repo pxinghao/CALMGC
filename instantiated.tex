@@ -270,9 +270,8 @@ which are a subset of the tombstones of $\tt{GCDR-}$ for $\tt{C}_{TS}$.
 \subsection{Correctness}
 We will now show that $\mathfrak{P}_{iGC}$ produces the same output as $\mathfrak{P}$.
 
-\begin{thm}[Representation Correctness]
-\label{thm:instantiated_correctness}
-For any set $\tt{A}$, let $\tt{GC}$ be its logical GC rule in $\mathfrak{P}_{GC}$ and $\tt{iGC}$ be its instantiated GC rule in $\mathfrak{P}_{iGC}$.
+\newcommand{\thminstantiatedcorrectness}{
+  For any set $\tt{A}$, let $\tt{GC}$ be its logical GC rule in $\mathfrak{P}_{GC}$ and $\tt{iGC}$ be its instantiated GC rule in $\mathfrak{P}_{iGC}$.
 Then, it is either the case that
 \begin{enumerate}
 \item $\tt{A} \in \mathbb{W}(\tt{iGC})$, $\tt{iGC}$ is weakly consistent with $\tt{GC}$ on $\tt{A}$, and $\tt{A}_I$ (or $\tt{A}_E$) is weakly consistent with $\tt{A}_{TS}$, i.e.,
@@ -288,6 +287,10 @@ In both cases, if $\tt{A}_E$ is key-augmented in $\mathfrak{P}_{iGC}$, then
 \begin{align}
 \forall t, i : \tt{A}_{!,t,i} = \pi_!(\tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t,i}) \label{eq:thm_instantiated_correctness_key}.
 \end{align}
+}
+\begin{thm}[Representation Correctness]
+\label{thm:instantiated_correctness}
+\thminstantiatedcorrectness
 \end{thm}
 \begin{rmk}
 An immediate consequence is that $\forall t, i: \tt{A}_{!,t,i} - \pi_!(\tt{A}_{I,t,i}) \subseteq \pi_!(\tt{A}_{\top,t,i})$ for weakly consistent $\tt{A}_E$, and $\forall t, i: \tt{A}_{!,t,i} - \pi_!(\tt{A}_{I,t,i}) = \pi_!(\tt{A}_{\top,t,i})$ for strongly consistent $\tt{A}_E$.

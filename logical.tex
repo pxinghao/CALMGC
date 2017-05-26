@@ -245,9 +245,12 @@ Thus, $\tt{A}_\top$ is unchanged during an instantaneous run.
 \end{proof}
 Due to Lemma \ref{lem:unchangedexists}, we can write $\tt{A}_{\top,t}$ in place of $\tt{A}_{\top,t,i}$.
 
+\newcommand{\lemmergegcinv}{
+The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc} for any rule $R$.
+}
 \begin{lemma}
 \label{lem:merge_gc_inv}
-The rewritten GC program $\mathfrak{P}_{GC}$ maintains the Merge GC Invariant \ref{inv:merge_gc} for any rule $R$.
+\lemmergegcinv
 \end{lemma}
 
 \begin{rmk}
@@ -261,9 +264,10 @@ It is easy to see that $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ have equivalent ou
 That is, every run of $\mathfrak{P}$ has a one-to-one corresponding run of $\mathfrak{P}_{GC}$ that produces lattices such that $\tt{A}_\exists \cup \tt{A}_\top = \tt{A}$.
 And in particular, for output sets where no garbage collection is performed, we get $\tt{A}_\exists = \tt{A}$.
 
+\newcommand{\thmequivalenceofsets}{For every set $\tt{A}$, we have that $\tt{A}_{t,i} = \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.}
 \begin{thm}
 \label{thm:equivalence_of_sets}
-For every set $\tt{A}$, we have that $\tt{A}_{t,i} = \tt{A}_{\exists,t,i} \cup \tt{A}_{\top,t}$.
+\thmequivalenceofsets
 \end{thm}
 
 
@@ -278,11 +282,13 @@ If a set $\tt{A}$ is an output set, it has $\tt{A}_{\top,t} = \emptyset$, and he
 
 \subsubsection{Coordination-freeness}
 
-\begin{thm}
-\label{thm:coord-free}
+\newcommand{\thmcoordfree}{
 $\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$.
 If $\mathfrak{P}$ is confluent in all tables, then $\mathfrak{P}_{GC}$ is also confluent in all tables.
-In particular, if all functions $\tt{f}$'s are monotone, then $\mathfrak{P}$ is expressed in monotone Bloom, $\mathfrak{P}_{GC}$ is expressed in monotone Bloom$^L$, and both $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ are confluent.
+In particular, if all functions $\tt{f}$'s are monotone, then $\mathfrak{P}$ is expressed in monotone Bloom, $\mathfrak{P}_{GC}$ is expressed in monotone Bloom$^L$, and both $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ are confluent.}
+\begin{thm}
+\label{thm:coord-free}
+\thmcoordfree
 \end{thm}
 \begin{rmk}
 This is a stronger but different statement than Theorem \ref{thm:equivalence_of_sets} and Corollary \ref{cor:equivalence_of_output}.

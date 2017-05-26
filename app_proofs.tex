@@ -5,7 +5,10 @@
 
 
 \subsection{Proofs for Section \ref{sec:logical}}
-Proof for Lemma \ref{lem:merge_gc_inv}.
+\subsubsection{Lemma \ref{lem:merge_gc_inv}}
+\begin{lemma}[Lemma \ref{lem:merge_gc_inv} restated]
+\lemmergegcinv
+\end{lemma}
 
 \begin{proof}
 We prove the lemma for any given $R$ by an induction on $t$ and $i$.
@@ -160,7 +163,10 @@ which establishes that the Merge GC Invariant \ref{inv:merge_gc} holds at $t$ an
 
 
 
-Proof for Theorem \ref{thm:equivalence_of_sets}.
+\subsubsection{Theorem \ref{thm:equivalence_of_sets}}
+\begin{thm}[Theorem \ref{thm:equivalence_of_sets} restated]
+\thmequivalenceofsets
+\end{thm}
 
 \begin{proof}
 We will again prove the theorem via induction.
@@ -201,7 +207,7 @@ Hence, $\mathfrak{P}_{GC}$ also reaches at fixed point at $t$, $i=\iota$.
 
 Finally, suppose we have $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$.
 Suppose $\tt{A}$ appears in the LHS of $m$ deferred merge rules in $\mathfrak{P}$: $\tt{A}$ $\tt{<+}$ $\tt{f}_j\tt{(}\tt{C}_{j,1},\dots,\tt{C}_{j,n_j}\tt{)}$.
-Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $\tt{<+}$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS}; \tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
+Additionally, in $\mathfrak{P}_{GC}$, $\tt{A}_{TS}$ appears in (at most) one GC rule $\langle \tt{A}_{TS}, \tt{D}_{1,TS}, \dots, \tt{D}_{k,TS} \rangle$ $\tt{<+}$ $\tt{GC}(\tt{A}_{TS}, \tt{D}_{1,TS}, \dots,$ $\tt{D}_{k,TS};$ $\tt{B}_{1,TS}, \dots, \tt{B}_{k',TS})$.
 Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \tt{GC}(\tt{A}_{TS,t-1,\iota}, \tt{D}_{1,TS,t-1,\iota}, \dots, \tt{D}_{k,TS,t-1,\iota};$ $\tt{B}_{1,TS,t-1,\iota}, \dots, \tt{B}_{k',TS,t-1,\iota})$, and note that $\tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1} = \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*$ by the conservation property of $\tt{GC}$.
 Then,
 \begin{align*}
@@ -219,13 +225,10 @@ Thus, we have established that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} 
 
 
 
-% \begin{thm*}
-% \ref{thm:coord-free}
-% $\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$.
-% If $\mathfrak{P}$ is confluent in all tables, then $\mathfrak{P}_{GC}$ is also confluent in all tables.
-% In particular, if all functions $\tt{f}$'s are monotone, then $\mathfrak{P}$ is expressed in monotone Bloom, $\mathfrak{P}_{GC}$ is expressed in monotone Bloom$^L$, and both $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ are confluent.
-% \end{thm*}
-.
+\subsubsection{Theorem \ref{thm:coord-free}}
+\begin{thm}[Theorem \ref{thm:coord-free} restated]
+\thmcoordfree
+\end{thm}
 
 \begin{proof}
 Rules in $\mathfrak{P}$ either correspond to rules in $\mathfrak{P}$, or are new garbage collection rules.
@@ -241,7 +244,10 @@ The only rules in $\mathfrak{P}_{GC}$ that promote tuples from $\exists$ to $\to
 
 \subsection{Proofs for Section \ref{sec:instantiated}}
 
-Proof for Theorem \ref{thm:instantiated_correctness}.
+\subsubsection{Theorem \ref{thm:instantiated_correctness}}
+\begin{thm}[Theorem \ref{thm:instantiated_correctness} restated]
+\thminstantiatedcorrectness
+\end{thm}
 
 \begin{proof}
 Our proof proceeds by induction on $t$ and $i$.
