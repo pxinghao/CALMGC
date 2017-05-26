@@ -27,7 +27,7 @@ $\emptyset = \widehat{\tt{U}}_1 \cap \tt{U}_{1,\top,t,i} = \dots =  \widehat{\tt
     \widehat{\tt{U}}_n
 \tt{)}
 \nonumber\\
-=&
+=~&
 \tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
 \cup
 \tt{f(}
@@ -61,7 +61,7 @@ $\forall j=1,\dots,m$, $\widehat{\tt{U}}_j \cap \tt{U}_{1,\top,t} = \emptyset$,
     \dots,
     \widehat{\tt{U}}_n
 \tt{)}\\
-=&
+=~&
 \widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
 \cup
 \tt{f(}
@@ -72,7 +72,7 @@ $\forall j=1,\dots,m$, $\widehat{\tt{U}}_j \cap \tt{U}_{1,\top,t} = \emptyset$,
     \dots,
     \widehat{\tt{U}}_n
 \tt{)}\\
-=&
+=~&
 \widetilde{\tt{B}} \cup \tt{B}_{\exists,t,i-1} \cup \tt{B}_{\top,t}
 \cup
 \tt{f(}
@@ -83,7 +83,7 @@ $\forall j=1,\dots,m$, $\widehat{\tt{U}}_j \cap \tt{U}_{1,\top,t} = \emptyset$,
   \dots,
   \widehat{\tt{U}}_n \cup \tt{U}_{n,\top,t}
 \tt{)}\\
-=&
+=~&
 \tt{B}_{\exists,t,i} \cup \tt{B}_{\top,t}
 \cup
 \tt{f(}
@@ -206,20 +206,26 @@ Let $\langle \tt{A}_{TS}^*, \tt{D}_{1,TS}^*, \dots, \tt{D}_{k,TS}^* \rangle = \t
 Then,
 \begin{align*}
 \tt{A}_{t,0}
-=& \tt{A}_{t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,t-1,\iota},\dots,\tt{C}_{j,n_j,t-1,\iota}\tt{)}\\
-=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+=~& \tt{A}_{t-1,\iota} \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,t-1,\iota},\dots,\tt{C}_{j,n_j,t-1,\iota}\tt{)}\\
+=~& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
 \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
-=& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
+=~& \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}
 \cup \tt{A}_{\exists}^* \cup \tt{A}_{\top}^*
 \cup \bigcup_{j=1}^m \tt{f}_j\tt{(}\tt{C}_{j,1,\exists,t-1,\iota} \cup \tt{C}_{j,1,\top,t-1}, \dots, \tt{C}_{j,n_j,\exists,t-1,\iota} \cup \tt{C}_{j,n_j,\top,t-1}\tt{)}\\
-=& \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}.
+=~& \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}.
 \end{align*}
 Thus, we have established that $\tt{A}_{t-1,\iota} = \tt{A}_{\exists,t-1,\iota} \cup \tt{A}_{\top,t-1}$ implies $\tt{A}_{t,0} = \tt{A}_{\exists,t,0} \cup \tt{A}_{\top,t}$.
 \end{proof}
 
 
 
-Proof for Theorem \ref{thm:coord-free}.
+% \begin{thm*}
+% \ref{thm:coord-free}
+% $\mathfrak{P}_{GC}$ does not require any additional coordination over $\mathfrak{P}$.
+% If $\mathfrak{P}$ is confluent in all tables, then $\mathfrak{P}_{GC}$ is also confluent in all tables.
+% In particular, if all functions $\tt{f}$'s are monotone, then $\mathfrak{P}$ is expressed in monotone Bloom, $\mathfrak{P}_{GC}$ is expressed in monotone Bloom$^L$, and both $\mathfrak{P}$ and $\mathfrak{P}_{GC}$ are confluent.
+% \end{thm*}
+.
 
 \begin{proof}
 Rules in $\mathfrak{P}$ either correspond to rules in $\mathfrak{P}$, or are new garbage collection rules.

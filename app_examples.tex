@@ -19,7 +19,7 @@ Then $\tt{GCUnion}(\tt{A}_{TS}, \tt{C}_{TS}; \tt{B}_{TS}) = \langle (\tt{A}_\exi
 Invariant \ref{inv:merge_gc} for the union rule reduces to $\tt{A}_\top \cup \tt{C}_\top \subseteq \tt{A}_\exists \cup \tt{C}_\exists \cup \tt{B}_\exists \cup \tt{B}_\top$.
 Then,
 \begin{align*}
-&\tt{A}_\top \cup \tt{A}^* \cup \tt{C}_\top \cup \tt{A}^*\\
+\tt{A}_\top \cup \tt{A}^* \cup \tt{C}_\top \cup \tt{A}^*
 &\quad\subseteq\quad \tt{A}_\exists \cup \tt{C}_\exists \cup \tt{B}_\exists \cup \tt{B}_\top\\
 &\quad=\quad (\tt{A}_\exists \cap (\tt{B}_\exists \cup \tt{B}_\top)^c) \cup (\tt{C}_\exists \cap (\tt{B}_\exists \cup \tt{B}_\top)^c) \cup \tt{B}_\exists \cup \tt{B}_\top\\
 &\quad=\quad (\tt{A}_\exists - \tt{A}^*) \cup (\tt{C}_\exists - \tt{A}^*) \cup \tt{B}_\exists \cup \tt{B}_\top\\
@@ -42,7 +42,7 @@ Then $\tt{GCSelect}(\tt{A}_{TS}; \tt{B}_{TS}) = (\tt{A}_\exists - \tt{A}^*, \tt{
 Similar to Example \ref{ex:project_gc}, the Merge GC Invariant \ref{inv:merge_gc} for selection reduces to $\sigma_P(\tt{A}_\top) \subseteq \tt{B}_\exists \cup \tt{B}_\top$.
 If $\tt{A}_{TS}$ and $\tt{B}_{TS}$ satisfy the invariant, then
 \begin{align*}
-&\sigma_P(\tt{A}_\top \cup \tt{A}^*)\\
+\sigma_P(\tt{A}_\top \cup \tt{A}^*)
 &= \sigma_P(\tt{A}_\top) \cup \sigma_P(\sigma_{\neg P}(\tt{A}_\exists \cup \tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top)))\\
 &= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists \cup \tt{A}_\top) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
 &= \sigma_P(\tt{A}_\top) \cup (\sigma_P(\tt{A}_\exists) \cap (\tt{B}_\exists \cup \tt{B}_\top))\\
